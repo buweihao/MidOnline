@@ -1,0 +1,31 @@
+﻿<UserControl x:Class="BasicRegionNavigation.Controls.StatusBox"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:BasicRegionNavigation.Controls"
+             mc:Ignorable="d" 
+             Background ="Transparent"
+             d:DesignHeight="450" d:DesignWidth="800">
+    <Border CornerRadius="4" Background="#90212121" Padding="4">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- 左侧颜色条 -->
+            <Rectangle Grid.Column="0" Fill="{Binding StatusColor, RelativeSource={RelativeSource AncestorType=UserControl}}" RadiusX="2" RadiusY="2"/>
+
+            <!-- 右侧文字 -->
+            <StackPanel Grid.Column="1" Margin="5,0,0,0" VerticalAlignment="Center">
+                <TextBlock Text="{Binding Title, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                           FontSize="17" FontWeight="SemiBold" Foreground="White" />
+                <TextBlock FontSize="15">
+                    <Run Text="产能：" Foreground="White"/>
+                    <Run Text="{Binding Output, RelativeSource={RelativeSource AncestorType=UserControl}}" Foreground="White" FontWeight="Bold"/>
+                </TextBlock>
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>

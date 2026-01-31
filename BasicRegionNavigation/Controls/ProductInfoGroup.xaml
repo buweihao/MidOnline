@@ -1,0 +1,74 @@
+﻿<UserControl x:Class="BasicRegionNavigation.Controls.ProductInfoGroup"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             x:Name="root"
+             d:DesignWidth="400" d:DesignHeight="200">
+
+    <UserControl.Resources>
+        <Style x:Key="ItemBorderStyle" TargetType="Border">
+            <Setter Property="Background" Value="#5D676E"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="Padding" Value="10"/>
+        </Style>
+
+        <Style x:Key="LabelTextStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#bbbdbe"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="ValueTextStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="24"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Border Background="#232f3a" CornerRadius="6" Padding="5" Margin="10">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Border CornerRadius="6,6,0,0" Background="#2e3a44" Grid.Row="0">
+                <TextBlock Text="{Binding Title, ElementName=root}"
+                           Foreground="White" FontSize="16" FontWeight="Bold" 
+                           Margin="0,3,0,3" Padding="6,6,0,6" />
+            </Border>
+
+            <ItemsControl Grid.Row="1" 
+                          ItemsSource="{Binding Items, ElementName=root}"
+                          Margin="0,5,0,0">
+
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <UniformGrid Columns="2" IsItemsHost="True"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource ItemBorderStyle}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding Label}" Style="{StaticResource LabelTextStyle}"/>
+                                <TextBlock Text="{Binding Value}" Style="{StaticResource ValueTextStyle}" Grid.Column="1"/>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+        </Grid>
+    </Border>
+</UserControl>

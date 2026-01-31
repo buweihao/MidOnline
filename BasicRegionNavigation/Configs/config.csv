@@ -1,0 +1,191 @@
+﻿// DeviceID, IP, Port, TagName, Address, DataType, ScanRate, Area, IsFavorite, Length(Regs)
+// --- Peripheral Status (周边墩子状态) ---,,,,,,,,,
+PLC_Peripheral,10.120.93.89,502, PLC_Peripheral_FeedStation1Status,1520, Bool,500, Coils, False,
+PLC_Peripheral,10.120.93.89,502, PLC_Peripheral_FeedStation2Status,1521, Bool,500, Coils, False,
+PLC_Peripheral,10.120.93.89,502, PLC_Peripheral_FeedStation3Status,1522, Bool,500, Coils, False,
+PLC_Peripheral,10.120.93.89,502, PLC_Peripheral_HangerOkStation1Status,1523, Bool,500, Coils, False,
+PLC_Peripheral,10.120.93.89,502, PLC_Peripheral_HangerOkStation2Status,1524, Bool,500, Coils, False,
+PLC_Peripheral,10.120.93.89,502, PLC_Peripheral_HangerNgStationStatus,1525, Bool,500, Coils, False,
+,,,,,,,,,
+// --- Robot Status (机械手状态) ---,,,,,,,,,
+PLC_Robot,10.120.93.89,502, PLC_Robot_ProductStatus,701, Int16,500, Registers, False,
+PLC_Robot,10.120.93.89,502, PLC_Robot_HangerStatus,702, Int16,500, Registers, False,
+,,,,,,,,,
+// --- Feeder & Flipper Status/Capacity (供料机与翻转台状态/产能) ---,,,,,,,,,
+PLC_Feeder_A,10.120.93.87,502, PLC_Feeder_A_Status,7004, Int16,500, Registers, False,
+PLC_Feeder_A,10.120.93.87,502, PLC_Feeder_A_TotalCapacity,6764, Int32,1000, Registers, False,
+PLC_Feeder_B,10.120.93.88,502, PLC_Feeder_B_Status,7004, Int16,500, Registers, False,
+PLC_Feeder_B,10.120.93.88,502, PLC_Feeder_B_TotalCapacity,6764, Int32,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Status,701, Int16,500, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_TotalCapacity,6764, Int32,1000, Registers, False,
+,,,,,,,,,
+// --- Recipe Info (配方信息：上位机 -> PLC) ---,,,,,,,,,
+// 供料机A,,,,,,,,,
+PLC_Feeder_A,10.120.93.87,502, PLC_Feeder_A_ProjectNo,7400, String,1000, Registers, False,6
+PLC_Feeder_A,10.120.93.87,502, PLC_Feeder_A_ProductType,7410, String,1000, Registers, False,6
+PLC_Feeder_A,10.120.93.87,502, PLC_Feeder_A_AnodeType,7420, Int16,1000, Registers, False,
+PLC_Feeder_A,10.120.93.87,502, PLC_Feeder_A_ProductColor,7425, String,1000, Registers, False,6
+PLC_Feeder_A,10.120.93.87,502, PLC_Feeder_A_MaterialCategory,7430, String,1000, Registers, False,6
+PLC_Feeder_A,10.120.93.87,502, PLC_Feeder_A_Reserved,7435, String,1000, Registers, False,6
+// 供料机B,,,,,,,,,
+PLC_Feeder_B,10.120.93.88,502, PLC_Feeder_B_ProjectNo,7400, String,1000, Registers, False,6
+PLC_Feeder_B,10.120.93.88,502, PLC_Feeder_B_ProductType,7410, String,1000, Registers, False,6
+PLC_Feeder_B,10.120.93.88,502, PLC_Feeder_B_AnodeType,7420, Int16,1000, Registers, False,
+PLC_Feeder_B,10.120.93.88,502, PLC_Feeder_B_ProductColor,7425, String,1000, Registers, False,6
+PLC_Feeder_B,10.120.93.88,502, PLC_Feeder_B_MaterialCategory,7430, String,1000, Registers, False,6
+PLC_Feeder_B,10.120.93.88,502, PLC_Feeder_B_Reserved,7435, String,1000, Registers, False,6
+// 上挂翻转台,,,,,,,,,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_ProjectNo,1020, String,1000, Registers, False,6
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_ProductType,1030, String,1000, Registers, False,6
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_AnodeType,1040, Int16,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_ProductColor,1050, String,1000, Registers, False,6
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_MaterialCategory,1060, String,1000, Registers, False,6
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Reserved,1070, String,1000, Registers, False,6
+,,,,,,,,,
+// --- Time Synchronization (设备时间同步) ---,,,,,,,,,
+// 上挂翻转台,,,,,,,,,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Year,1000, Int16,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Month,1001, Int16,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Day,1002, Int16,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hour,1003, Int16,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Minute,1004, Int16,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Second,1005, Int16,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_WeekDay,1006, Int16,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_SyncSignalReceived,1007, Int16,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_SyncWriteBack,1008, Int16,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Heartbeat,1009, Int16,1000, Registers, False,
+// 上供料机A,,,,,,,,,
+PLC_Feeder_A,10.120.93.87,502, PLC_Feeder_A_Year,3460, Int16,1000, Registers, False,
+PLC_Feeder_A,10.120.93.87,502, PLC_Feeder_A_Month,3461, Int16,1000, Registers, False,
+PLC_Feeder_A,10.120.93.87,502, PLC_Feeder_A_Day,3462, Int16,1000, Registers, False,
+PLC_Feeder_A,10.120.93.87,502, PLC_Feeder_A_Hour,3463, Int16,1000, Registers, False,
+PLC_Feeder_A,10.120.93.87,502, PLC_Feeder_A_Minute,3464, Int16,1000, Registers, False,
+PLC_Feeder_A,10.120.93.87,502, PLC_Feeder_A_Second,3465, Int16,1000, Registers, False,
+PLC_Feeder_A,10.120.93.87,502, PLC_Feeder_A_WeekDay,3466, Int16,1000, Registers, False,
+// 上供料机B,,,,,,,,,
+PLC_Feeder_B,10.120.93.88,502, PLC_Feeder_B_Year,3460, Int16,1000, Registers, False,
+PLC_Feeder_B,10.120.93.88,502, PLC_Feeder_B_Month,3461, Int16,1000, Registers, False,
+PLC_Feeder_B,10.120.93.88,502, PLC_Feeder_B_Day,3462, Int16,1000, Registers, False,
+PLC_Feeder_B,10.120.93.88,502, PLC_Feeder_B_Hour,3463, Int16,1000, Registers, False,
+PLC_Feeder_B,10.120.93.88,502, PLC_Feeder_B_Minute,3464, Int16,1000, Registers, False,
+PLC_Feeder_B,10.120.93.88,502, PLC_Feeder_B_Second,3465, Int16,1000, Registers, False,
+PLC_Feeder_B,10.120.93.88,502, PLC_Feeder_B_WeekDay,3466, Int16,1000, Registers, False,
+,,,,,,,,,
+// --- Fault Alarms (供料机与翻转台故障报警) ---,,,,,,,,,
+// 供料机A,,,,,,,,,
+PLC_Feeder_A,10.120.93.87,502, PLC_Feeder_A_SensorFault,7100, Bool,1000, Coils, False,
+PLC_Feeder_A,10.120.93.87,502, PLC_Feeder_A_ComponentFault,7101, Bool,1000, Coils, False,
+PLC_Feeder_A,10.120.93.87,502, PLC_Feeder_A_TraceCommFault,7102, Bool,1000, Coils, False,
+PLC_Feeder_A,10.120.93.87,502, PLC_Feeder_A_MasterCommFault,7103, Bool,1000, Coils, False,
+// 供料机B,,,,,,,,,
+PLC_Feeder_B,10.120.93.88,502, PLC_Feeder_B_SensorFault,7100, Bool,1000, Coils, False,
+PLC_Feeder_B,10.120.93.88,502, PLC_Feeder_B_ComponentFault,7101, Bool,1000, Coils, False,
+PLC_Feeder_B,10.120.93.88,502, PLC_Feeder_B_TraceCommFault,7102, Bool,1000, Coils, False,
+PLC_Feeder_B,10.120.93.88,502, PLC_Feeder_B_MasterCommFault,7103, Bool,1000, Coils, False,
+// 翻转台,,,,,,,,,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_SensorFault,1500, Bool,1000, Coils, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_ComponentFault,1501, Bool,1000, Coils, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_TraceCommFault,1502, Bool,1000, Coils, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_HostCommFault,1503, Bool,1000, Coils, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_RobotCommFault,1504, Bool,1000, Coils, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_DoorTriggered,1505, Bool,1000, Coils, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_SafetyCurtainTriggered,1506, Bool,1000, Coils, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_EmergencyStop,1507, Bool,1000, Coils, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_ScannerCommFault,1508, Bool,1000, Coils, False,
+,,,,,,,,,
+// --- Product Code Read (产品码读取) ---,,,,,,,,,
+// 供料机A,,,,,,,,,
+PLC_Feeder_A,10.120.93.87,502, PLC_Feeder_A_ProductCode,1200, String,100, Registers, False,54
+PLC_Feeder_A,10.120.93.87,502, PLC_Feeder_A_ReadTrigger,7011, Int16,100, Registers, False,
+
+// 供料机B,,,,,,,,,
+PLC_Feeder_B,10.120.93.88,502, PLC_Feeder_B_ProductCode,1200, String,100, Registers, False,54
+PLC_Feeder_B,10.120.93.88,502, PLC_Feeder_B_ReadTrigger,7011, Int16,100, Registers, False,
+
+,,,,,,,,,
+// --- Flipper Product & Fixture Code (翻转台产品码与挂具码) ---,,,,,,,,,
+// 第一组A面,,,,,,,,,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_A_ProductCode,2020, String,500, Registers, True,168
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_A_FixtureCode,2000, String,500, Registers, True,7
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_A_ProductPosition,1340, String,500, Registers, True,1
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_A_ProjectNo,1300, String,500, Registers, True,6
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_A_MaterialCategory,1310, String,500, Registers, True,6
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_A_AnodeType,1320, String,500, Registers, False,6
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_A_ProductColor,1330, String,500, Registers, False,6
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_A_ReadTrigger,720, Int16,200, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_A_ReadResult,721, Int16,200, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_A_ReadClear,722, Int16,200, Registers, False,
+// 第一组B面,,,,,,,,,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_B_ProductCode,2188, String,500, Registers, True,168
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_B_FixtureCode,2000, String,500, Registers, True,7
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_B_ProductPosition,1342, String,500, Registers, True,1
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_B_ProjectNo,1300, String,500, Registers, True,6
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_B_MaterialCategory,1310, String,500, Registers, True,6
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_B_AnodeType,1320, String,500, Registers, False,6
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_B_ProductColor,1330, String,500, Registers, False,6
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_B_ReadTrigger,720, Int16,200, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_B_ReadResult,721, Int16,200, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_B_ReadClear,722, Int16,200, Registers, False,
+,,,,,,,,,
+// --- Hourly Capacity Data (小时产能数据) ---,,,,,,,,,
+// 供料机A,,,,,,,,,
+PLC_Feeder_A,10.120.93.87,502, PLC_Feeder_A_Hourly_ProjectNo,7400, String,1000, Registers, False,6
+PLC_Feeder_A,10.120.93.87,502, PLC_Feeder_A_Hourly_ProductType,7410, String,1000, Registers, False,6
+PLC_Feeder_A,10.120.93.87,502, PLC_Feeder_A_Hourly_Capacity,6764, Int32,1000, Registers, False,
+PLC_Feeder_A,10.120.93.87,502, PLC_Feeder_A_Hourly_StandbyTimeMin,6766, Int16,1000, Registers, False,
+PLC_Feeder_A,10.120.93.87,502, PLC_Feeder_A_Hourly_FaultTimeMin,6966, Int16,1000, Registers, False,
+PLC_Feeder_A,10.120.93.87,502, PLC_Feeder_A_Hourly_FaultCount,6998, Int16,1000, Registers, False,
+PLC_Feeder_A,10.120.93.87,502, PLC_Feeder_A_Hourly_SystemNG,4752, Int16,1000, Registers, False,
+PLC_Feeder_A,10.120.93.87,502, PLC_Feeder_A_Hourly_MaterialLost,6999, Int16,1000, Registers, False,
+PLC_Feeder_A,10.120.93.87,502, PLC_Feeder_A_ChangeoverTrigger,496, Int16,1000, Registers, False,
+// 供料机B,,,,,,,,,
+PLC_Feeder_B,10.120.93.88,502, PLC_Feeder_B_Hourly_ProjectNo,7400, String,1000, Registers, False,6
+PLC_Feeder_B,10.120.93.88,502, PLC_Feeder_B_Hourly_ProductType,7410, String,1000, Registers, False,6
+PLC_Feeder_B,10.120.93.88,502, PLC_Feeder_B_Hourly_Capacity,6764, Int32,1000, Registers, False,
+PLC_Feeder_B,10.120.93.88,502, PLC_Feeder_B_Hourly_StandbyTimeMin,6766, Int16,1000, Registers, False,
+PLC_Feeder_B,10.120.93.88,502, PLC_Feeder_B_Hourly_FaultTimeMin,6966, Int16,1000, Registers, False,
+PLC_Feeder_B,10.120.93.88,502, PLC_Feeder_B_Hourly_FaultCount,6998, Int16,1000, Registers, False,
+PLC_Feeder_B,10.120.93.88,502, PLC_Feeder_B_Hourly_SystemNG,4752, Int16,1000, Registers, False,
+PLC_Feeder_B,10.120.93.88,502, PLC_Feeder_B_Hourly_MaterialLost,6999, Int16,1000, Registers, False,
+PLC_Feeder_B,10.120.93.88,502, PLC_Feeder_B_ChangeoverTrigger,496, Int16,1000, Registers, False,
+,,,,,,,,,
+// --- Flipper Hourly Capacity (翻转台小时产能) ---,,,,,,,,,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_ProjectNo,1200, String,1000, Registers, False,6
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_ProductType,1210, String,1000, Registers, False,6
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_BatchNo,1220, String,1000, Registers, False,6
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_AnodeType,1230, String,1000, Registers, False,6
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_MaterialCategory,1240, String,1000, Registers, False,6
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_CapacityDay0,1100, Int32,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_CapacityDay1,1102, Int32,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_CapacityDay2,1104, Int32,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_CapacityDay3,1106, Int32,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_CapacityDay4,1108, Int32,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_CapacityDay5,1110, Int32,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_CapacityDay6,1112, Int32,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_CapacityDay7,1114, Int32,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_CapacityDay8,1116, Int32,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_CapacityDay9,1118, Int32,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_CapacityDay10,1120, Int32,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_CapacityDay11,1122, Int32,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_CapacityNight0,1124, Int32,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_CapacityNight1,1126, Int32,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_CapacityNight2,1128, Int32,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_CapacityNight3,1130, Int32,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_CapacityNight4,1132, Int32,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_CapacityNight5,1134, Int32,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_CapacityNight6,1136, Int32,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_CapacityNight7,1138, Int32,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_CapacityNight8,1140, Int32,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_CapacityNight9,1142, Int32,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_CapacityNight10,1144, Int32,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_CapacityNight11,1146, Int32,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_StandbyTimeMin,1110, Int32,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_FaultTimeMin,1120, Int32,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_FaultCount,1130, Int16,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_MixingQty,1140, Int16,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_ScanNGQty,1150, Int16,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_SysFeedbackQty,1160, Int16,1000, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_Trigger,730, Int16,200, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_Result,731, Int16,200, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_Hourly_Reset,732, Int16,200, Registers, False,
+PLC_Flipper,10.120.93.89,502, PLC_Flipper_ChangeoverTrigger,733, Int16,200, Registers, False,

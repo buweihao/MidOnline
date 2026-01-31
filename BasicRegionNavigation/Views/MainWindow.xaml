@@ -1,0 +1,229 @@
+﻿<Window x:Class="BasicRegionNavigation.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:prism="http://prismlibrary.com/"
+        xmlns:hc="https://handyorg.github.io/handycontrol" xmlns:views="clr-namespace:BasicRegionNavigation.Views"
+        xmlns:Core="clr-namespace:Core"
+        xmlns:Console="clr-namespace:MyConsole;assembly=MyConsole"
+        prism:ViewModelLocator.AutoWireViewModel="True"
+        xmlns:modbus="clr-namespace:MyModbus;assembly=MyModbus"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        PreviewKeyDown="Window_KeyDown"
+        Loaded="Window_Loaded"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        WindowStartupLocation="CenterScreen"
+        Title="{Binding Title}"
+        Height="1080"
+        Width="1920">
+    <Window.Resources>
+        <ResourceDictionary>
+
+        </ResourceDictionary>
+    </Window.Resources>
+    <Window.Background>
+        <LinearGradientBrush EndPoint="1,1" StartPoint="0,0">
+            <GradientStop Color="#011223"/>
+            <GradientStop Color="#0969b4" Offset="1"/>
+        </LinearGradientBrush>
+    </Window.Background>
+    <Window.InputBindings>
+
+        <KeyBinding Command="{Binding AddModuleCommand}"
+                    Modifiers="Ctrl"
+                    Key="OemPlus" />
+        <KeyBinding Command="{Binding MinusModuleCommand}"
+                    Modifiers="Ctrl"
+                    Key="OemMinus" />
+    </Window.InputBindings>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="1080"/>
+            <RowDefinition Height="1080"/>
+            <RowDefinition Height="1080"/>
+        </Grid.RowDefinitions>
+        <ScrollViewer VerticalScrollBarVisibility="Hidden"
+                      Panel.ZIndex="100"
+                      VerticalAlignment="Top"
+                      Background="Transparent"
+                      Height="70"
+                      Margin="0,100,0,0" 
+                      IsHitTestVisible="False"
+                      HorizontalAlignment="Right">
+            <StackPanel x:Name="GrowlHost" 
+                        Panel.ZIndex="100"
+                        hc:Growl.GrowlParent="True"
+                        hc:Growl.Token="GlobalGrowl"
+                        IsHitTestVisible="False"
+                        Height="70"
+                        Background="Transparent"
+                        Margin="0">
+                <StackPanel.Resources>
+                    <SolidColorBrush x:Key="PrimaryTextBrush" Color="Black"/>
+                </StackPanel.Resources>
+            </StackPanel>
+        </ScrollViewer>
+        <!--<Image Grid.RowSpan="1" x:Name="WelcomeImage" Source="/Resources/OnImage1.png" Stretch="UniformToFill"></Image>-->
+        <Grid x:Name="Grid1" Background="Transparent" Visibility="{Binding LoginedSign}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="80*"/>
+                <!-- 顶部状态栏 -->
+                <RowDefinition Height="50*"/>
+                <!-- 系统名称 -->
+                <RowDefinition Height="930*"/>
+                <!--用户控件-->
+            </Grid.RowDefinitions>
+
+            <!-- 顶部状态栏 -->
+            <Grid x:Name="TopNavigate"
+                  Grid.Row="0"
+                  Background="Transparent"
+                  MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="10*"/>
+                    <ColumnDefinition Width="10*"/>
+                    <ColumnDefinition Width="10*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="TimeBox" Background="Transparent"  Text="{Binding CurrentTime}" Foreground="Cyan" FontSize="20" Margin="40,0,0,0" VerticalAlignment="Center"/>
+                <Grid Grid.Column="1">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="2*"/>
+                        <RowDefinition Height="1*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock  Text="{Binding Title_ch}" Foreground="Cyan" FontSize="28" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="6,13,0,0" FontWeight="Bold"></TextBlock>
+                    <TextBlock  Grid.Row="1" Text="{Binding Title_en}" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="Cyan" FontSize="12" Margin="20,-5,0,0"></TextBlock>
+                </Grid>
+                <Grid  HorizontalAlignment="Right" Margin="0,15,150,0" Grid.Column="2"  MouseLeftButtonDown="OnRoleAreaClicked">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="10*"/>
+                        <ColumnDefinition Width="10*"/>
+                        <ColumnDefinition Width="10*"/>
+                        <ColumnDefinition Width="10*"/>
+                    </Grid.ColumnDefinitions>
+                    <Path 
+    Data="M511.997 551.041c-218.044 0-399.92 168.61-441.722 392.645l883.45-0.439C911.607 719.432 729.83 551.041 511.997 551.041zM266.597 305.64c0 135.532 109.868 245.401 245.403 245.401 135.53 0 245.403-109.87 245.403-245.4C757.403 170.105 647.53 60.235 512 60.235c-135.535 0-245.403 109.87-245.403 245.406z"
+    Fill="Cyan"
+    Width="32"
+    Height="35"
+    Stretch="Uniform"  Margin="0,0,0,30" />
+                    <!--用户图标-->
+                    <TextBlock x:Name="ShowRole" Grid.Column="1"  Foreground="Cyan" FontSize="15" VerticalAlignment="Center" Margin="10,0,0,30"/>
+                    <!-- Close Button -->
+                    <Button  Grid.Column="3" x:Name="close"  Content="X" Width="40" Height="40" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="10,0,-140,0" Click="close_Click">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="Foreground" Value="White"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                                <Setter Property="FontSize" Value="25"/>
+                                <Setter Property="BorderBrush" Value="Transparent"/>
+                                <Setter Property="BorderThickness" Value="2"/>
+                                <Setter Property="Width" Value="40"/>
+                                <Setter Property="Height" Value="40"/>
+                                <Setter Property="Cursor" Value="Hand"/>
+                            </Style>
+                        </Button.Style>
+
+                    </Button>
+                    <!-- Minimize Button -->
+                    <Button Grid.Column="2" x:Name="min" Content="–" Width="40" Height="40" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,0,-90,0"  Click="min_Click">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="Foreground" Value="White"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                                <Setter Property="FontSize" Value="25"/>
+                                <Setter Property="BorderBrush" Value="Transparent"/>
+                                <Setter Property="BorderThickness" Value="2"/>
+                                <Setter Property="Width" Value="40"/>
+                                <Setter Property="Height" Value="40"/>
+                                <Setter Property="Cursor" Value="Hand"/>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+
+                </Grid>
+            </Grid>
+
+
+            <!-- 一级导航栏 -->
+            <Grid Grid.Row="1"
+                  HorizontalAlignment="Center"
+                  Background="Transparent"
+                  Margin="0,0,0,0"
+                  Panel.ZIndex="99">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="10*"/>
+                    <ColumnDefinition Width="10*"/>
+                    <ColumnDefinition Width="10*"/>
+                    <ColumnDefinition Width="10*"/>
+                    <ColumnDefinition Width="60*"/>
+                    <ColumnDefinition Width="10*"/>
+                    <ColumnDefinition Width="10*"/>
+                    <ColumnDefinition Width="10*"/>
+                    <ColumnDefinition Width="10*"/>
+                    <ColumnDefinition Width="10*"/>
+                    <ColumnDefinition Width="2*"/>
+                </Grid.ColumnDefinitions>
+                <hc:ClockRadioButton x:Name="FirstButton" Grid.Column="0" Content="  系统监控  " Style="{StaticResource NavToggleButtonStyle}"  Command="{Binding NavigateCommand}" CommandParameter="ViewA"
+                  GroupName="MainMenu" IsChecked="True" />
+                <hc:ClockRadioButton Grid.Column="1" Content="  效能监控  " Style="{StaticResource NavToggleButtonStyle}" Command="{Binding NavigateCommand}" CommandParameter="ViewB"
+                  GroupName="MainMenu"  />
+                <hc:ClockRadioButton Grid.Column="2" Content="  设置界面  " Style="{StaticResource NavToggleButtonStyle}" Command="{Binding NavigateCommand}" CommandParameter="Setting" 
+                  GroupName="MainMenu"/>
+                <hc:ClockRadioButton Grid.Column="3" Content="  报警监控  " Style="{StaticResource NavToggleButtonStyle}"  Command="{Binding NavigateCommand}" CommandParameter="AlarmMonitor"
+                  GroupName="MainMenu"/>
+                <TextBlock Grid.Column="4"  Text="                                                                                                                                                                                                       "   
+                  />
+                <hc:ClockRadioButton Grid.Column="5" Content="  通讯监控  " Style="{StaticResource NavToggleButtonStyle}"  Command="{Binding NavigateCommand}" CommandParameter="ComMonitor"
+                  GroupName="MainMenu"/>
+                <hc:ClockRadioButton Grid.Column="6" Content="  数据查询  " Style="{StaticResource NavToggleButtonStyle}"  Command="{Binding NavigateCommand}" CommandParameter="Query"
+                  GroupName="MainMenu"/>
+                <hc:ClockRadioButton Grid.Column="7" Content="  数据分析  " Style="{StaticResource NavToggleButtonStyle}"  Command="{Binding NavigateCommand}" CommandParameter="Analysis"
+                  GroupName="MainMenu"/>
+                <hc:ClockRadioButton Grid.Column="8" Content="  用户管理  " Style="{StaticResource NavToggleButtonStyle}"   Command="{Binding NavigateCommand}" CommandParameter="UserManage"
+                  GroupName="MainMenu"/>
+                <modbus:DashboardEntry Grid.Column="9"></modbus:DashboardEntry>
+                <Console:ConsoleButton Grid.Column="9" Visibility="Collapsed"></Console:ConsoleButton>
+            </Grid>
+
+            <ContentControl Grid.Row="2" prism:RegionManager.RegionName="ContentRegion"  Margin="5" >
+            </ContentControl>
+
+        </Grid>
+        <Viewbox x:Name="myViewbox" Stretch="Uniform" Visibility="{Binding LoginingSign}">
+            <Grid x:Name="MainGrid"  >
+                <Grid Background="Transparent"  Height="180" Width="170" Margin="0,0,0,15" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Border Background="#214873" Height="85" Width="80" Margin="0,10,0,0" CornerRadius="2">
+                        <StackPanel >
+                            <TextBlock Text="管理系统" Background="Transparent" FontSize="6.5" Height="20" Padding="26,7.5,0,0" Foreground="#00d9e8"></TextBlock>
+                            <TextBlock Text="系统登录" FontSize="4.5" Background="Transparent" Height="10" Padding="6,3,0,0" Foreground="White"></TextBlock>
+                            <TextBlock Text="用户名" FontSize="2.7" Background="Transparent" Height="8" Padding="6,5,0,0" Foreground="Gray"></TextBlock>
+                            <Border Background="#35597d" Height="7" Margin="6,2,7,0">
+                                <hc:WatermarkTextBox x:Name="UserName" Text="Admin"  Watermark="请输入用户名"  FontSize="2.5"  Margin="-6,1.5,0,0" />
+                            </Border>
+
+                            <TextBlock Text="密码" FontSize="2.7" Background="Transparent" Height="8" Padding="6,4,0,0" Foreground="Gray"></TextBlock>
+                            <Border Background="#35597d" Height="7" Margin="6,2,7,0">
+                                <hc:PasswordBox Password="Admin" BorderThickness="0" x:Name="UserPassWrod" Margin="-12,1.5,0,0"   Background="Transparent"  FontSize="2.5" Width="67" HorizontalContentAlignment="Left" VerticalContentAlignment="Top" />
+                            </Border>
+
+                            <Button x:Name="LoginButton"  Content="登录" Background="#00b4c7" Foreground="White" Width="67" BorderBrush="Transparent" Height="7.5" Padding="0" Margin="0,6,0,0"  FontSize="3" Click="LoginButton_Click"></Button>
+                        </StackPanel>
+                    </Border>
+
+                </Grid>
+            </Grid>
+        </Viewbox>
+        <views:LoadingOverlay x:Name="waveBar"
+                              Panel.ZIndex="1"
+                              Visibility="{Binding IsLoading}"
+                              LoadingText="{Binding LoadingText}" />
+
+        <wv2:WebView2 x:Name="View1" Visibility="Hidden"/>
+        <wv2:WebView2 x:Name="View2" Visibility="Hidden"/>
+
+    </Grid>
+
+</Window>

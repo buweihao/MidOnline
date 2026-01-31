@@ -1,0 +1,174 @@
+﻿<UserControl x:Class="BasicRegionNavigation.Controls.TwoDataTableWithHeader"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:BasicRegionNavigation.Controls"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- 复用你的样式字典 -->
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Border Style="{StaticResource MyCustomBorderStyle}">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <!-- 总标题 -->
+                <RowDefinition Height="*" />
+                <!-- 上表 -->
+                <RowDefinition Height="Auto" />
+                <!-- 分隔线(可选) -->
+                <RowDefinition Height="*" />
+                <!-- 下表 -->
+            </Grid.RowDefinitions>
+
+            <!-- 总标题 -->
+            <ContentControl Grid.Row="0"
+                            Content="{Binding Title,
+                                      RelativeSource={RelativeSource AncestorType={x:Type local:TwoDataTableWithHeader}}}"
+                            Style="{StaticResource SectionHeaderStyle}" />
+
+            <!-- 上表 -->
+            <DataGrid x:Name="gridTop"
+                      Grid.Row="1"
+                      ItemsSource="{Binding ItemsSourceTop,
+                                            RelativeSource={RelativeSource AncestorType={x:Type local:TwoDataTableWithHeader}}}"                      AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      HeadersVisibility="Column"
+                      SelectionMode="Single"
+                      Margin="10,0,10,8"
+                      Background="Transparent"
+                      Foreground="White"
+                      GridLinesVisibility="Horizontal"
+                      HorizontalGridLinesBrush="White"
+                      VerticalGridLinesBrush="Transparent"
+                      BorderThickness="0"
+                      RowHeaderWidth="0"
+                      SelectionUnit="FullRow"
+                      ColumnHeaderHeight="35"
+                      RowHeight="35"
+                      EnableRowVirtualization="True">
+                <DataGrid.ColumnHeaderStyle>
+                    <Style TargetType="DataGridColumnHeader">
+                        <Setter Property="Foreground"
+                                Value="White" />
+                        <Setter Property="Background"
+                                Value="Transparent" />
+                        <Setter Property="FontSize"
+                                Value="14" />
+                        <Setter Property="HorizontalContentAlignment"
+                                Value="Left" />
+                        <Setter Property="BorderBrush"
+                                Value="Transparent" />
+                        <Setter Property="Margin"
+                                Value="12,0,0,0" />
+                    </Style>
+                </DataGrid.ColumnHeaderStyle>
+                <DataGrid.RowStyle>
+                    <Style TargetType="DataGridRow">
+                        <Setter Property="Background"
+                                Value="Transparent" />
+                        <Setter Property="Foreground"
+                                Value="White" />
+                        <Setter Property="BorderThickness"
+                                Value="0,0,0,1" />
+                        <Setter Property="BorderBrush"
+                                Value="White" />
+                        <Setter Property="FontSize"
+                                Value="14" />
+                        <Style.Triggers>
+                            <Trigger Property="IsSelected"
+                                     Value="True">
+                                <Setter Property="Background"
+                                        Value="MediumPurple" />
+                                <Setter Property="Foreground"
+                                        Value="Black" />
+                                <Setter Property="FontSize"
+                                        Value="17" />
+                                <Setter Property="FontWeight"
+                                        Value="Bold" />
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.RowStyle>
+            </DataGrid>
+
+            <!-- 分隔线(可选) -->
+            <Border Grid.Row="2"
+                    Height="1"
+                    Margin="10,0"
+                    Background="#40FFFFFF" />
+
+            <!-- 下表 -->
+            <DataGrid x:Name="gridBottom"
+                      Grid.Row="3"
+                      ItemsSource="{Binding ItemsSourceBottom,
+                                            RelativeSource={RelativeSource AncestorType={x:Type local:TwoDataTableWithHeader}}}"
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      HeadersVisibility="Column"
+                      SelectionMode="Single"
+                      Margin="10"
+                      Background="Transparent"
+                      Foreground="White"
+                      GridLinesVisibility="Horizontal"
+                      HorizontalGridLinesBrush="White"
+                      VerticalGridLinesBrush="Transparent"
+                      BorderThickness="0"
+                      RowHeaderWidth="0"
+                      SelectionUnit="FullRow"
+                      ColumnHeaderHeight="35"
+                      RowHeight="35"
+                      EnableRowVirtualization="True">
+                <DataGrid.ColumnHeaderStyle>
+                    <Style TargetType="DataGridColumnHeader">
+                        <Setter Property="Foreground"
+                                Value="White" />
+                        <Setter Property="Background"
+                                Value="Transparent" />
+                        <Setter Property="FontSize"
+                                Value="14" />
+                        <Setter Property="HorizontalContentAlignment"
+                                Value="Left" />
+                        <Setter Property="BorderBrush"
+                                Value="Transparent" />
+                        <Setter Property="Margin"
+                                Value="12,0,0,0" />
+                    </Style>
+                </DataGrid.ColumnHeaderStyle>
+                <DataGrid.RowStyle>
+                    <Style TargetType="DataGridRow">
+                        <Setter Property="Background"
+                                Value="Transparent" />
+                        <Setter Property="Foreground"
+                                Value="White" />
+                        <Setter Property="BorderThickness"
+                                Value="0,0,0,1" />
+                        <Setter Property="BorderBrush"
+                                Value="White" />
+                        <Setter Property="FontSize"
+                                Value="14" />
+                        <Style.Triggers>
+                            <Trigger Property="IsSelected"
+                                     Value="True">
+                                <Setter Property="Background"
+                                        Value="MediumPurple" />
+                                <Setter Property="Foreground"
+                                        Value="Black" />
+                                <Setter Property="FontSize"
+                                        Value="17" />
+                                <Setter Property="FontWeight"
+                                        Value="Bold" />
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.RowStyle>
+            </DataGrid>
+        </Grid>
+    </Border>
+</UserControl>

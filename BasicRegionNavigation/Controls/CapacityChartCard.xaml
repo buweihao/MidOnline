@@ -1,0 +1,36 @@
+﻿<UserControl x:Class="BasicRegionNavigation.Controls.CapacityChartCard"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.WPF;assembly=LiveChartsCore.SkiaSharpView.WPF"
+             mc:Ignorable="d" 
+             x:Name="root">
+    <Border Background="#232f3a" CornerRadius="6" Padding="15" Margin="10">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!-- 标题区域 -->
+            <TextBlock Text="{Binding Title, ElementName=root}" 
+                       Foreground="White" 
+                       FontSize="16" 
+                       FontWeight="Bold" 
+                       Margin="0,0,0,10"/>
+
+            <!-- 图表区域 -->
+            <lvc:CartesianChart Grid.Row="1"
+                    Series="{Binding Series, ElementName=root}" 
+                    XAxes="{Binding XAxes, ElementName=root}"
+                    YAxes="{Binding YAxes, ElementName=root}"
+                    TooltipPosition="Top"
+                    Background="Transparent"
+                    ZoomMode="None"
+                    DrawMarginFrame="{x:Null}"
+                    AnimationsSpeed="00:00:00">
+            </lvc:CartesianChart>
+        </Grid>
+    </Border>
+</UserControl>

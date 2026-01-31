@@ -1,0 +1,109 @@
+﻿<UserControl x:Class="BasicRegionNavigation.Views.HangerQuery"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:BasicRegionNavigation.Views"
+             xmlns:hc="https://handyorg.github.io/handycontrol"
+             mc:Ignorable="d" 
+             xmlns:prism="http://prismlibrary.com/"       
+             prism:ViewModelLocator.AutoWireViewModel="True"
+             d:DesignHeight="450" d:DesignWidth="800">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="1*"/>
+            <RowDefinition Height="20*"/>
+        </Grid.RowDefinitions>
+        <Grid  >
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1*"/>
+                <ColumnDefinition Width="1.5*"/>
+                <ColumnDefinition Width="1*"/>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="0.2*"/>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="1*"/>
+                <ColumnDefinition Width="1*"/>
+                <ColumnDefinition Width="10*"/>
+
+            </Grid.ColumnDefinitions>
+            <TextBlock HorizontalAlignment="Center"  Text="挂具编号" Foreground="White" VerticalAlignment="Center" FontSize="14"/>
+            <TextBox Grid.Column="1"  Text="{Binding HangerCode}" Height="30" Foreground="Gray" Background="#232f3a" />
+
+            <!-- 时间范围 -->
+            <TextBlock Grid.Column="2"  HorizontalAlignment="Center"  Text="时间范围" Foreground="White" VerticalAlignment="Center" FontSize="14"/>
+            <hc:DateTimePicker Grid.Column="3" Height="30" DateTimeFormat="yyyy-MM-dd HH:mm:ss" hc:InfoElement.Placeholder="时间范围" hc:InfoElement.ShowClearButton="True"
+                        Margin="10,0" SelectedDateTime="{Binding Start}" />
+            <TextBlock Grid.Column="4" Text="至" VerticalAlignment="Center" Foreground="White" HorizontalAlignment="Center" FontSize="14"/>
+            <hc:DateTimePicker Grid.Column="5" Height="30" DateTimeFormat="yyyy-MM-dd HH:mm:ss" 
+                        Margin="10,0" SelectedDateTime="{Binding End}"/>
+
+            <!-- 查询按钮 -->
+            <Button Grid.Column="6" Content="查询" Width="70" Height="30"
+            Background="#2288FF" Foreground="White" BorderThickness="0" Command="{Binding QueryCommand}"/>
+
+            <!-- 导出按钮 -->
+            <Button  Grid.Column="7"
+                     Content="导出数据"
+                     Width="70"
+                     Height="30"
+                     Command="{Binding ExportCommand}"
+                     Background="#4CAF50" Foreground="White" BorderThickness="0"/>
+        </Grid>
+        <Border  Margin="10" Background="#1E2A38" CornerRadius="6" Grid.Row="1">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="8*"/>
+                </Grid.RowDefinitions>
+                <!-- 表头 -->
+                <Grid Background="#182128">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="1*" />
+                        <ColumnDefinition Width="1.5*" />
+                        <ColumnDefinition Width="1.5*" />
+                        <ColumnDefinition Width="1.5*" />
+                        <ColumnDefinition Width="1.5*" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="挂具编号" Foreground="White" FontWeight="Bold" VerticalAlignment="Center" Margin="15"/>
+                    <TextBlock Grid.Column="1" Text="上挂模组" Foreground="White" FontWeight="Bold" VerticalAlignment="Center" Margin="5"/>
+                    <TextBlock Grid.Column="2" Text="上挂时间" Foreground="White" FontWeight="Bold" VerticalAlignment="Center" Margin="5"/>
+                    <TextBlock Grid.Column="3" Text="下挂模组" Foreground="White" FontWeight="Bold" VerticalAlignment="Center" Margin="5"/>
+                    <TextBlock Grid.Column="4" Text="下挂时间" Foreground="White" FontWeight="Bold" VerticalAlignment="Center" Margin="5"/>
+                </Grid>
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" Grid.Row="1">
+                    <!-- 数据行 -->
+                    <ItemsControl  Foreground="White" ItemsSource="{Binding HangerQueryRowItems}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="5,5,2,5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="1*" />
+                                        <ColumnDefinition Width="1.5*" />
+                                        <ColumnDefinition Width="1.5*" />
+                                        <ColumnDefinition Width="1.5*" />
+                                        <ColumnDefinition Width="1.5*" />
+                                    </Grid.ColumnDefinitions>
+
+
+                                    <TextBlock Text="{Binding VehicleId}" Foreground="White" VerticalAlignment="Center" Margin="5"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding UpHangerModoule}" Margin="5,5,20,5"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding UpHangerTime}" Margin="5,5,20,5"/>
+                                    <TextBlock Grid.Column="3" Text="{Binding DnHangerModoule}" Margin="5,5,20,5"/>
+                                    <TextBlock Grid.Column="4" Text="{Binding DnHangerTime}" Margin="5,5,20,5"/>
+
+
+
+
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+
+            </Grid>
+        </Border>
+    </Grid>
+
+</UserControl>

@@ -1,0 +1,159 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup Label="Globals">
+	  <WebView2UseWinRT>False</WebView2UseWinRT>
+	</PropertyGroup>
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net8.0-windows7.0</TargetFramework>
+		<AssemblyName>Template</AssemblyName>
+		<UseWPF>true</UseWPF>
+		<Platforms>AnyCPU;x64</Platforms>
+		<PackageIcon>EProject.ico</PackageIcon>
+		<ApplicationIcon>EProject.ico</ApplicationIcon>
+	</PropertyGroup>
+	<ItemGroup>
+		<None Remove="EProject.ico" />
+		<None Remove="EProject.png" />
+		<None Remove="Resources\ArmPic.png" />
+		<None Remove="Resources\BackPic.png" />
+		<None Remove="Resources\OnImage1.png" />
+		<None Remove="Resources\RealPic.png" />
+		<None Remove="Resources\参考图.png" />
+		<None Remove="Resources\参考图0.png" />
+	</ItemGroup>
+	<ItemGroup>
+	  <Content Include="EProject.ico" />
+	</ItemGroup>
+	<ItemGroup>
+		<Resource Include="EProject.ico">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</Resource>
+		<Resource Include="EProject.png">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</Resource>
+		<Resource Include="Resources\Computer.png" />
+		<Resource Include="Resources\connection.png" />
+		<Resource Include="Resources\connectionNo.png" />
+		<Resource Include="Resources\DModel.png" />
+		<Resource Include="Resources\DownSupplyer.png" />
+		<Resource Include="Resources\EffiencyPic.png" />
+		<Resource Include="Resources\OnImage1.png" />
+		<Resource Include="Resources\RealPic.png" />
+		<Resource Include="Resources\TopSupplyer.png" />
+		<Resource Include="Resources\TurnPanel.png" />
+		<Resource Include="Resources\参考图.png" />
+	</ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Castle.Core" />
+		<PackageReference Include="ClosedXML" />
+		<PackageReference Include="CommunityToolkit.Mvvm" />
+		<PackageReference Include="DryIoc.Microsoft.DependencyInjection" />
+		<PackageReference Include="HandyControl" />
+		<PackageReference Include="HslCommunication" />
+		<PackageReference Include="LiveChartsCore.SkiaSharpView.WPF" />
+		<PackageReference Include="Microsoft.Extensions.Configuration" />
+		<PackageReference Include="Microsoft.Extensions.Hosting" />
+		<PackageReference Include="Microsoft.Web.WebView2" />
+		<PackageReference Include="Moq" />
+		<PackageReference Include="Newtonsoft.Json" />
+		<PackageReference Include="NuGet.exe" />
+		<PackageReference Include="NUnit" />
+		<PackageReference Include="NUnit3TestAdapter" />
+		<PackageReference Include="Prism.Core" />
+		<PackageReference Include="Prism.DryIoc" />
+		<PackageReference Include="Serilog" />
+		<PackageReference Include="Serilog.Extensions.Logging" />
+		<PackageReference Include="Serilog.Settings.Configuration" />
+		<PackageReference Include="Serilog.Sinks.Console" />
+		<PackageReference Include="Serilog.Sinks.File" />
+		<PackageReference Include="SqlSugarCore" />
+	</ItemGroup>
+	<ItemGroup>
+		<Resource Include="Resources\BackPic.png" />
+		<Resource Include="Resources\参考图0.png" />
+	</ItemGroup>
+	<ItemGroup>
+		<Compile Update="Controls\AddUserDialog.xaml.cs">
+			<SubType>Code</SubType>
+		</Compile>
+		<Compile Update="Controls\CapacityChartCard.xaml.cs">
+			<SubType>Code</SubType>
+		</Compile>
+		<Compile Update="Controls\ConnectUnit.xaml.cs">
+			<SubType>Code</SubType>
+		</Compile>
+		<Compile Update="Controls\DataTableWithHeader.xaml.cs">
+			<SubType>Code</SubType>
+		</Compile>
+		<Compile Update="Controls\LineWithImage.xaml.cs">
+			<SubType>Code</SubType>
+		</Compile>
+		<Compile Update="Controls\PieChartCard.xaml.cs">
+			<SubType>Code</SubType>
+		</Compile>
+		<Compile Update="Controls\StatusBox.xaml.cs">
+			<SubType>Code</SubType>
+		</Compile>
+		<Compile Update="Controls\TextDialog.xaml.cs">
+			<SubType>Code</SubType>
+		</Compile>
+		<Compile Update="Controls\TwoDataTableWithHeader.xaml.cs">
+			<SubType>Code</SubType>
+		</Compile>
+		<Compile Update="Views\AlarmMonitor.xaml.cs">
+			<SubType>Code</SubType>
+		</Compile>
+		<Compile Update="Views\Analysis.xaml.cs">
+			<SubType>Code</SubType>
+		</Compile>
+		<Compile Update="Views\ComMonitor.xaml.cs">
+			<SubType>Code</SubType>
+		</Compile>
+		<Compile Update="Views\HangerQueryView.xaml.cs">
+			<SubType>Code</SubType>
+		</Compile>
+		<Compile Update="Views\Query.xaml.cs">
+			<SubType>Code</SubType>
+		</Compile>
+		<Compile Update="Views\Setting.xaml.cs">
+			<SubType>Code</SubType>
+		</Compile>
+		<Compile Update="Views\UserManage.xaml.cs">
+			<SubType>Code</SubType>
+		</Compile>
+	</ItemGroup>
+	<ItemGroup>
+		<None Update="Configs\config.csv">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+		<None Update="Configs\product_setting.json">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+		<None Update="Configs\config.json">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
+	<ItemGroup>
+	  <None Include="..\..\EProject.ico">
+	    <Pack>True</Pack>
+	    <PackagePath>\</PackagePath>
+	  </None>
+	</ItemGroup>
+	<ItemGroup>
+	  <Reference Include="MyConfig">
+	    <HintPath>D:\工作项目\My\MyConfig\bin\Debug\net8.0-windows7.0\MyConfig.dll</HintPath>
+	  </Reference>
+	  <Reference Include="MyConsole">
+	    <HintPath>D:\工作项目\My\MyConsole\bin\Debug\net8.0-windows\MyConsole.dll</HintPath>
+	  </Reference>
+	  <Reference Include="MyDatabase">
+	    <HintPath>D:\工作项目\My\MyDatabase\bin\Debug\net8.0-windows\MyDatabase.dll</HintPath>
+	  </Reference>
+	  <Reference Include="MyLog">
+	    <HintPath>D:\工作项目\My\MyLog\bin\Debug\net8.0-windows\MyLog.dll</HintPath>
+	  </Reference>
+	  <Reference Include="MyModbus">
+	    <HintPath>D:\工作项目\My\MyModbus\bin\Debug\net8.0-windows\MyModbus.dll</HintPath>
+	  </Reference>
+	</ItemGroup>
+</Project>
