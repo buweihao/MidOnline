@@ -7,6 +7,7 @@ using LiveChartsCore;
 using LiveChartsCore.Measure;
 using LiveChartsCore.SkiaSharpView;
 using LiveChartsCore.SkiaSharpView.Painting;
+using MyModbus;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
@@ -90,61 +91,82 @@ namespace BasicRegionNavigation.Models
     {
         // --- 1. 静态画刷缓存 (性能优化关键) ---
         // 必须使用静态实例，否则每次 new SolidColorBrush 即使颜色一样，引用也不一样，无法触发界面更新过滤
-        private static readonly Brush ColorDefault = new SolidColorBrush(Color.FromArgb(255, 0, 235, 246));
-        private static readonly Brush ColorOk = new SolidColorBrush(Colors.LimeGreen);
-        private static readonly Brush ColorNg = new SolidColorBrush(Colors.Red);
-        private static readonly Brush ColorOffline = new SolidColorBrush(Colors.Gray);
+        // 使用辅助方法创建并冻结画刷
+        private static readonly Brush ColorDefault = CreateFrozenBrush(Color.FromArgb(255, 0, 235, 246));
+        private static readonly Brush ColorOk = CreateFrozenBrush(Colors.LimeGreen);
+        private static readonly Brush ColorNg = CreateFrozenBrush(Colors.Red);
+        private static readonly Brush ColorOffline = CreateFrozenBrush(Colors.Gray);
 
-        // 默认颜色提取
-        private static readonly Brush DefaultColor = new SolidColorBrush(Color.FromArgb(255, 0, 235, 246));
-
+        // 辅助方法：创建并冻结
+        private static Brush CreateFrozenBrush(Color color)
+        {
+            var brush = new SolidColorBrush(color);
+            // 【关键一步】冻结画刷，使其跨线程安全
+            if (brush.CanFreeze)
+            {
+                brush.Freeze();
+            }
+            return brush;
+        }
         // --- 1. 周边墩子 (Peripheral) ---
         // 上挂工位 1, 2, 3
-        [ObservableProperty] private Brush _feedStation1Status = DefaultColor;
-        [ObservableProperty] private Brush _feedStation2Status = DefaultColor;
-        [ObservableProperty] private Brush _feedStation3Status = DefaultColor;
+        [ObservableProperty] private Brush _feedStation1Status = ColorDefault;
+        [ObservableProperty] private Brush _feedStation2Status = ColorDefault;
+        [ObservableProperty] private Brush _feedStation3Status = ColorDefault;
 
         // OK/NG 挂具工位
         // 修正：不再叫 Sensor，改叫 Station，区分 1 和 2
-        [ObservableProperty] private Brush _hangerOkStation1Status = DefaultColor;
-        [ObservableProperty] private Brush _hangerOkStation2Status = DefaultColor;
-        [ObservableProperty] private Brush _hangerNgStationStatus = DefaultColor;
+        [ObservableProperty] private Brush _hangerOkStation1Status = ColorDefault;
+        [ObservableProperty] private Brush _hangerOkStation2Status = ColorDefault;
+        [ObservableProperty] private Brush _hangerNgStationStatus = ColorDefault;
 
 
         // --- 2. 机械手 (Robot) ---
         // 上产品小机械手
-        [ObservableProperty] private Brush _productRobotStatus = DefaultColor;
+        [ObservableProperty] private Brush _productRobotStatus = ColorDefault;
         // 上挂具大机械手
-        [ObservableProperty] private Brush _hangerRobotStatus = DefaultColor;
+        [ObservableProperty] private Brush _hangerRobotStatus = ColorDefault;
 
 
         // --- 3. 供料机 (Feeder A/B) ---
         // A 设备 (原 UnLoadModule1)
-        [ObservableProperty] private Brush _feederAStatus = DefaultColor;
+        [ObservableProperty] private Brush _feederAStatus = ColorDefault;
         [ObservableProperty] private int _feederACapacity = -1;
 
         // B 设备 (原 UnLoadModule2)
-        [ObservableProperty] private Brush _feederBStatus = DefaultColor;
+        [ObservableProperty] private Brush _feederBStatus = ColorDefault;
         [ObservableProperty] private int _feederBCapacity = -1;
 
 
         // --- 4. 翻转台 (Flipper) ---
         // 翻转台 (原 UpFlipper)
-        [ObservableProperty] private Brush _flipperStatus = DefaultColor;
+        [ObservableProperty] private Brush _flipperStatus = ColorDefault;
         [ObservableProperty] private int _flipperCapacity = -1;
         // --- 1. 颜色转换规则 (集中管理) ---
-        private Brush ConvertIntToBrush(int value)
+        private Brush ConvertIntToBrush(object value)
         {
-            // 这里定义你的业务规则
             return value switch
             {
-                1 => new SolidColorBrush(Colors.LimeGreen), // 正常/运行
-                2 => new SolidColorBrush(Colors.Red),       // 故障/报警
-                0 => new SolidColorBrush(Colors.Gray),      // 停止/离线
-                _ => DefaultColor                           // 未知
+                // 1. 优先适配 bool 类型
+                true => ColorOk,       // 对应 Colors.LimeGreen
+                false => ColorNg,      // 对应 Colors.Red
+
+                // 2. 适配 int 类型
+                1 => ColorOk,          // 运行
+                2 => ColorNg,          // 故障
+                0 => ColorOffline,     // 停止/离线
+                3 => ColorOffline,     // 未知/其他 (这里建议用 Gray，视需求而定)
+
+                // 3. 适配 string 类型
+                string s when bool.TryParse(s, out bool b) => b ? ColorOk : ColorNg,
+                "1" => ColorOk,
+                "2" => ColorNg,
+                "0" => ColorOffline,
+
+                // 4. 默认情况 (使用了你定义的默认色)
+                _ => ColorDefault
             };
         }
-        // --- 3. 核心更新方法 (引入 Category) ---
         /// <summary>
         /// 根据业务分类更新属性
         /// </summary>
@@ -157,35 +179,45 @@ namespace BasicRegionNavigation.Models
 
             var type = this.GetType();
 
-            // 2. 确定属性后缀策略
-            // 如果是 Status 分类，我们只找 xxxStatus 属性
-            // 如果是 Capacity 分类，我们只找 xxxCapacity 属性
-            string suffix = category switch
+            // 2. 确定属性后缀策略 (用于过滤，防止误赋值)
+            string expectedSuffix = category switch
             {
                 ModuleDataCategory.Status => "Status",
                 ModuleDataCategory.Capacity => "Capacity",
-                _ => "" // 其他情况不加后缀 (视具体需求而定)
+                _ => ""
             };
 
-            if (string.IsNullOrEmpty(suffix)) return;
+            if (string.IsNullOrEmpty(expectedSuffix)) return;
 
             // 3. 遍历数据并赋值
             foreach (var kvp in statusDict)
             {
-                string key = kvp.Key;   // 订阅时传入的 field (例如 "UnLoadModule1")
+                string fullTagName = kvp.Key;   // 例如 "PLC_Peripheral_FeedStation1Status"
                 int rawValue = kvp.Value;
 
-                string targetPropName = $"{key}";
+                // --- 核心修复：从完整 TagName 解析出属性名 ---
+                // 逻辑：截取最后一个 "_" 之后的部分
+                // "PLC_Peripheral_FeedStation1Status" -> "FeedStation1Status"
+                // "PLC_Feeder_A_TotalCapacity" -> "TotalCapacity"
+                string targetPropName = GetPropertyNameFromTag(fullTagName);
+
+                // 4. 双重校验：确保找到的属性名确实符合当前的分类 (以 Status 或 Capacity 结尾)
+                // 这样可以避免把 Capacity 的值赋给 Status 属性，反之亦然
+                if (!targetPropName.EndsWith(expectedSuffix))
+                {
+                    continue;
+                }
 
                 PropertyInfo targetProp = type.GetProperty(targetPropName);
 
                 if (targetProp != null)
                 {
-                    // 4. 根据目标属性类型赋值
+                    // 5. 根据目标属性类型赋值
                     if (targetProp.PropertyType == typeof(Brush))
                     {
+                        // 假设 Status 属性绑定的是颜色
                         var newBrush = ConvertIntToBrush(rawValue);
-                        // 性能优化：引用比较，只有真变了才 Set
+                        // 性能优化：引用比较
                         if (!ReferenceEquals(targetProp.GetValue(this), newBrush))
                         {
                             targetProp.SetValue(this, newBrush);
@@ -193,10 +225,34 @@ namespace BasicRegionNavigation.Models
                     }
                     else if (targetProp.PropertyType == typeof(int))
                     {
+                        // 假设 Capacity 属性绑定的是数值
                         targetProp.SetValue(this, rawValue);
+                    }
+                    // 补充：如果你的属性是 bool 类型 (比如某些 Status 是 bool)
+                    else if (targetProp.PropertyType == typeof(bool))
+                    {
+                        targetProp.SetValue(this, rawValue == 1);
                     }
                 }
             }
+        }
+
+        // 辅助方法：解析属性名 (建议放入 ModbusKeyHelper 或作为私有方法)
+        private string GetPropertyNameFromTag(string fullTagName)
+        {
+            if (string.IsNullOrEmpty(fullTagName)) return fullTagName;
+
+            // 使用库里定义的通用分隔符 (通常是 "_")
+            int lastIdx = fullTagName.LastIndexOf(ModbusKeyHelper.Separator);
+
+            // 确保找到了分隔符，并且不是在字符串末尾
+            if (lastIdx >= 0 && lastIdx < fullTagName.Length - 1)
+            {
+                return fullTagName.Substring(lastIdx + 1);
+            }
+
+            // 如果没有下划线，就直接返回原名 (容错)
+            return fullTagName;
         }
         public partial class CurrentPieInfo : ObservableObject
         {
@@ -249,24 +305,22 @@ namespace BasicRegionNavigation.Models
             {
                 var values = newValues.ToArray();
                 if (values.Length != _names.Length)
-                    // 实际生产中建议记录日志而不是直接抛出异常，防止崩贵
-                    return;
+                    return; // 建议记录日志
 
-                // 必须在 UI 线程操作（如果是在非 UI 线程收到数据，需通过 Dispatcher 调度）
-                // LiveCharts 的 ObservableCollection 修改通常会自动触发 UI 更新
+                // 清空旧数据
                 MyPieSeries.Clear();
 
-                // 默认颜色列表
+                // 默认颜色配置
                 hexColors ??= new[]
                 {
-                "#42A5F5", "#66BB6A", "#FFB74D",
-                "#9575CD", "#E57373", "#4DD0E1"
-            };
+        "#42A5F5", "#66BB6A", "#FFB74D",
+        "#9575CD", "#E57373", "#4DD0E1"
+    };
 
                 int i = 0;
                 foreach (var value in values)
                 {
-                    // 只有当值大于 0 时才显示，防止 0 值扇区重叠（可选优化）
+                    // 只添加大于0的数据
                     if (value > 0)
                     {
                         var color = SKColor.Parse(hexColors[i % hexColors.Length]);
@@ -278,17 +332,21 @@ namespace BasicRegionNavigation.Models
                             DataLabelsPosition = PolarLabelsPosition.Middle,
                             DataLabelsSize = 15,
                             DataLabelsPaint = new SolidColorPaint(SKColors.White),
+
+                            // 饼图中间显示的文字（根据需要截取）
                             DataLabelsFormatter = point =>
                             {
                                 var name = point.Context.Series.Name;
-                                // 简单的名称截断逻辑
                                 var dash = name.IndexOf('-');
                                 return dash >= 0 ? name.Substring(0, dash) : name;
                             },
-                            // Tooltip 显示百分比
-                            ToolTipLabelFormatter = point => $"{point.Context.Series.Name}: {point.StackedValue!.Share:P2}",
+
+                            // 【关键修改】Tooltip 格式化：显示 名称: 数量 (百分比)
+                            // point.PrimaryValue 就是具体的数量
+                            // point.StackedValue.Share 是百分比
+                            ToolTipLabelFormatter = point => $"{point.Context.Series.Name}: {point.Model} ({point.StackedValue!.Share:P2})",
                             Fill = new SolidColorPaint(color),
-                            AnimationsSpeed = TimeSpan.Zero // 实时数据建议关闭动画以提高性能
+                            AnimationsSpeed = TimeSpan.Zero
                         });
                     }
                     i++;

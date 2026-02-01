@@ -78,10 +78,11 @@ namespace BasicRegionNavigation.ViewModels
             { "FlipperEmergencyStop",     "翻转台-急停按下" },
             { "FlipperScannerCommFault",  "翻转台-扫码枪通讯故障" }
         };
-        public ViewAViewModel(IModbusService modbusService)
+        private readonly IProductionService _productionService; // 【新增】注入生产服务
+        public ViewAViewModel(IModbusService modbusService, IProductionService productionService)
         {
             _modbusService = modbusService;
-
+            _productionService = productionService; // 【新增】赋值
             // 1. 初始化所有模组 (假设有2个)
             InitializeModules(new[] { "1", "2" });
 
@@ -95,100 +96,173 @@ namespace BasicRegionNavigation.ViewModels
             //StartPieInfoSimulation();
             //StartColumnInfoSimulation();
             //StartWarningSimulation();
+            StartRealPieDataPolling();
+        }
+        private void StartRealPieDataPolling()
+        {
+            Task.Run(async () =>
+            {
+                while (true)
+                {
+                    try
+                    {
+                        // 1. 计算当班时间 (逻辑保持不变)
+                        var now = DateTime.Now;
+                        DateTime start, end;
+                        if (now.Hour >= 8 && now.Hour < 20)
+                        {
+                            start = now.Date.AddHours(8);
+                            end = now.Date.AddHours(20);
+                        }
+                        else
+                        {
+                            if (now.Hour >= 20)
+                            {
+                                start = now.Date.AddHours(20);
+                                end = now.Date.AddDays(1).AddHours(8);
+                            }
+                            else
+                            {
+                                start = now.Date.AddDays(-1).AddHours(20);
+                                end = now.Date.AddHours(8);
+                            }
+                        }
+
+                        // 2. 调用新接口：获取按模组分组的统计数据
+                        // 返回类型: Dictionary<string, Dictionary<string, int>>
+                        var allStats = await _productionService.GetProductStatsByModuleAndProjectAsync(start, end);
+
+                        // 3. 遍历所有模组数据并分发
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            // 遍历每一个模组的数据 (Key 是模组ID, Value 是该模组的项目统计)
+                            foreach (var moduleEntry in allStats)
+                            {
+                                string moduleId = moduleEntry.Key;       // 例如 "1", "2"
+                                var projectStats = moduleEntry.Value;    // 该模组下的数据
+
+                                // 【关键】将 moduleId 传入 HandleDataChanged
+                                // 这样数据就会更新到 模组1 或 模组2 的 ModuleModel 中
+                                HandleDataChanged(moduleId, ModuleDataCategory.UpPieInfo, projectStats);
+                            }
+
+                            // (可选) 如果你想清空那些没有数据的模组，可以遍历 _modulesCache.Keys 
+                            // 检查 allStats 是否包含该 Key，不包含则传空字典
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[饼图轮询错误] {ex.Message}");
+                    }
+
+                    await Task.Delay(500);
+                }
+            });
         }
         // 在 MainViewModel 或初始化逻辑中
         public void InitializeSubscriptions(IModbusService modbusService)
         {
-            string moduleId = "1";
+            // 定义需要订阅的模组 ID 列表
+            var moduleIds = new[] { "1", "2" };
 
-            // --- A. 订阅状态 (Status) ---
-            var statusMapping = new Dictionary<string, string>
+            foreach (var moduleId in moduleIds)
             {
-                { "FeedLift1",      "PLC_Peripheral_FeedStation1Status" },
-                { "FeedLift2",      "PLC_Peripheral_FeedStation2Status" },
-                { "HangOk",         "PLC_Peripheral_HangerOkStation1Status" },
-                { "DropNgSensor",   "PLC_Peripheral_HangerNgStationStatus" },
-                { "UnLoadModule1",  "PLC_Feeder_A_Status" },
-                { "DropModule1",    "PLC_Flipper_Status" }
-            };
+                // --- A. 订阅状态 (Status) ---
+                var statusMapping = new Dictionary<string, string>
+                {
+                    // 1. 周边墩子 (Peripheral) - 名字要和 CSV 里的 TagName 对应
+                    { "FeedStation1Status",        "PLC_Peripheral_FeedStation1Status" },
+                    { "FeedStation2Status",        "PLC_Peripheral_FeedStation2Status" },
+                    { "FeedStation3Status",        "PLC_Peripheral_FeedStation3Status" },
+                    { "HangerOkStation1Status",    "PLC_Peripheral_HangerOkStation1Status" }, // 注意 Station1
+                    { "HangerOkStation2Status",    "PLC_Peripheral_HangerOkStation2Status" }, // 注意 Station2
+                    { "HangerNgStationStatus",     "PLC_Peripheral_HangerNgStationStatus" },
+                
+                    // 2. 机械手 (Robot)
+                    { "ProductRobotStatus",        "PLC_Robot_ProductStatus" },
+                    { "HangerRobotStatus",         "PLC_Robot_HangerStatus" },
+                
+                    // 3. 供料机 (Feeder) - 注意这里做了“改名”映射
+                    // CSV里叫 PLC_Feeder_A_Status，UI里叫 FeederAStatus，Mapping 负责桥接
+                    { "FeederAStatus",             "PLC_Feeder_A_Status" },
+                    { "FeederBStatus",             "PLC_Feeder_B_Status" },
+                
+                    // 4. 翻转台 (Flipper)
+                    { "FlipperStatus",             "PLC_Flipper_Status" }
+                };
 
-            modbusService.SubscribeDynamicGroup(
-                moduleId: moduleId,
-                category: ModuleDataCategory.Status,
-                fieldMapping: statusMapping
-            );
+                modbusService.SubscribeDynamicGroup(
+                    moduleId: moduleId,
+                    category: ModuleDataCategory.Status,
+                    fieldMapping: statusMapping
+                );
 
-            // --- B. 订阅产能 (Capacity) ---
-            var capacityMapping = new Dictionary<string, string>
-            {
-                { "UnLoadModule1", "PLC_Feeder_A_TotalCapacity" },
-                { "UnLoadModule2", "PLC_Feeder_B_TotalCapacity" },
-                { "DropModule1",   "PLC_Flipper_TotalCapacity" }
-            };
+                // --- B. 订阅产能 (Capacity) ---
+                var capacityMapping = new Dictionary<string, string>
+                {
+                    { "FeederACapacity", "PLC_Feeder_A_TotalCapacity" },
+                    { "FeederBCapacity", "PLC_Feeder_B_TotalCapacity" },
+                    // 翻转台产能
+                    { "FlipperCapacity", "PLC_Flipper_TotalCapacity" }        
+                };
 
-            modbusService.SubscribeDynamicGroup(
-                moduleId: moduleId,
-                category: ModuleDataCategory.Capacity,
-                fieldMapping: capacityMapping
-            );
+                modbusService.SubscribeDynamicGroup(
+                    moduleId: moduleId,
+                    category: ModuleDataCategory.Capacity,
+                    fieldMapping: capacityMapping
+                );
 
-            // --- C. 订阅 24小时产能点位 (柱状图) ---
-            var hourlyCapacityMapping = new Dictionary<string, string>();
-            for (int i = 0; i < 12; i++) hourlyCapacityMapping.Add($"Day_{i}", $"PLC_Flipper_Hourly_CapacityDay{i}");
-            for (int i = 0; i < 12; i++) hourlyCapacityMapping.Add($"Night_{i}", $"PLC_Flipper_Hourly_CapacityNight{i}");
+                // --- C. 订阅 24小时产能点位 ---
+                var hourlyCapacityMapping = new Dictionary<string, string>();
+                for (int i = 0; i < 12; i++) hourlyCapacityMapping.Add($"Day_{i}", $"PLC_Flipper_Hourly_CapacityDay{i}");
+                for (int i = 0; i < 12; i++) hourlyCapacityMapping.Add($"Night_{i}", $"PLC_Flipper_Hourly_CapacityNight{i}");
 
-            modbusService.SubscribeDynamicGroup(
-                moduleId: moduleId,
-                category: ModuleDataCategory.UpColumnSeries,
-                fieldMapping: hourlyCapacityMapping
-            );
+                modbusService.SubscribeDynamicGroup(
+                    moduleId: moduleId,
+                    category: ModuleDataCategory.UpColumnSeries,
+                    fieldMapping: hourlyCapacityMapping
+                );
 
-            // --- D. 订阅产品信息 ---
-            var productInfoMapping = new Dictionary<string, string>
-            {
-                { "ProjectCode", "PLC_Flipper_ProjectNo" },
-                { "Material",    "PLC_Flipper_ProductType" },
-                { "AnodeType",   "PLC_Flipper_AnodeType" },
-                { "Color",       "PLC_Flipper_ProductColor" }
-            };
-            modbusService.SubscribeDynamicGroup(moduleId: moduleId, category: ModuleDataCategory.UpProductInfo, fieldMapping: productInfoMapping);
-            modbusService.SubscribeDynamicGroup(moduleId: moduleId, category: ModuleDataCategory.DnProductInfo, fieldMapping: productInfoMapping);
+                // --- D. 订阅产品信息 ---
+                var productInfoMapping = new Dictionary<string, string>
+        {
+            { "ProjectCode", "PLC_Flipper_ProjectNo" },
+            { "Material",    "PLC_Flipper_ProductType" },
+            { "AnodeType",   "PLC_Flipper_AnodeType" },
+            { "Color",       "PLC_Flipper_ProductColor" }
+        };
+                modbusService.SubscribeDynamicGroup(moduleId: moduleId, category: ModuleDataCategory.UpProductInfo, fieldMapping: productInfoMapping);
+                modbusService.SubscribeDynamicGroup(moduleId: moduleId, category: ModuleDataCategory.DnProductInfo, fieldMapping: productInfoMapping);
 
-            // --- [修改 2] E. 新增：报警信息订阅 ---
-            // Key 是 UI/逻辑中使用的标识，Value 是 CSV 中的点位名后缀
-            var warningMapping = new Dictionary<string, string>
-            {
-                // 供料机 A (7100-7103)
-                { "FeederASensorFault",       "PLC_Feeder_A_SensorFault" },
-                { "FeederAComponentFault",    "PLC_Feeder_A_ComponentFault" },
-                { "FeederATraceCommFault",    "PLC_Feeder_A_TraceCommFault" },
-                { "FeederAMasterCommFault",   "PLC_Feeder_A_MasterCommFault" },
+                // --- E. 报警信息订阅 ---
+                var warningMapping = new Dictionary<string, string>
+        {
+            { "FeederASensorFault",       "PLC_Feeder_A_SensorFault" },
+            { "FeederAComponentFault",    "PLC_Feeder_A_ComponentFault" },
+            { "FeederATraceCommFault",    "PLC_Feeder_A_TraceCommFault" },
+            { "FeederAMasterCommFault",   "PLC_Feeder_A_MasterCommFault" },
+            { "FeederBSensorFault",       "PLC_Feeder_B_SensorFault" },
+            { "FeederBComponentFault",    "PLC_Feeder_B_ComponentFault" },
+            { "FeederBTraceCommFault",    "PLC_Feeder_B_TraceCommFault" },
+            { "FeederBMasterCommFault",   "PLC_Feeder_B_MasterCommFault" },
+            { "FlipperSensorFault",       "PLC_Flipper_SensorFault" },
+            { "FlipperComponentFault",    "PLC_Flipper_ComponentFault" },
+            { "FlipperTraceCommFault",    "PLC_Flipper_TraceCommFault" },
+            { "FlipperHostCommFault",     "PLC_Flipper_HostCommFault" },
+            { "FlipperRobotCommFault",    "PLC_Flipper_RobotCommFault" },
+            { "FlipperDoorTriggered",     "PLC_Flipper_DoorTriggered" },
+            { "FlipperSafetyCurtain",     "PLC_Flipper_SafetyCurtainTriggered" },
+            { "FlipperEmergencyStop",     "PLC_Flipper_EmergencyStop" },
+            { "FlipperScannerCommFault",  "PLC_Flipper_ScannerCommFault" }
+        };
 
-                // 供料机 B (7100-7103)
-                { "FeederBSensorFault",       "PLC_Feeder_B_SensorFault" },
-                { "FeederBComponentFault",    "PLC_Feeder_B_ComponentFault" },
-                { "FeederBTraceCommFault",    "PLC_Feeder_B_TraceCommFault" },
-                { "FeederBMasterCommFault",   "PLC_Feeder_B_MasterCommFault" },
-
-                // 翻转台 (1500-1508)
-                { "FlipperSensorFault",       "PLC_Flipper_SensorFault" },
-                { "FlipperComponentFault",    "PLC_Flipper_ComponentFault" },
-                { "FlipperTraceCommFault",    "PLC_Flipper_TraceCommFault" },
-                { "FlipperHostCommFault",     "PLC_Flipper_HostCommFault" },
-                { "FlipperRobotCommFault",    "PLC_Flipper_RobotCommFault" },
-                { "FlipperDoorTriggered",     "PLC_Flipper_DoorTriggered" },
-                { "FlipperSafetyCurtain",     "PLC_Flipper_SafetyCurtainTriggered" },
-                { "FlipperEmergencyStop",     "PLC_Flipper_EmergencyStop" },
-                { "FlipperScannerCommFault",  "PLC_Flipper_ScannerCommFault" }
-            };
-
-            modbusService.SubscribeDynamicGroup(
-                moduleId: moduleId,
-                category: ModuleDataCategory.WarningInfo,
-                fieldMapping: warningMapping
-            );
+                modbusService.SubscribeDynamicGroup(
+                    moduleId: moduleId,
+                    category: ModuleDataCategory.WarningInfo,
+                    fieldMapping: warningMapping
+                );
+            }
         }
-
         private void InitializeModules(string[] ids)
         {
             foreach (var id in ids)
@@ -209,7 +283,7 @@ namespace BasicRegionNavigation.ViewModels
         private void HandleDataChanged(string moduleId, ModuleDataCategory category, object data)
         {
             // =========================================================
-            // 1. 处理柱状图数据 (兼容 Dictionary 和 double[])
+            // 1. 处理柱状图数据 (UpColumnSeries / DnColumnSeries)
             // =========================================================
             if (category == ModuleDataCategory.UpColumnSeries || category == ModuleDataCategory.DnColumnSeries)
             {
@@ -227,12 +301,14 @@ namespace BasicRegionNavigation.ViewModels
                         try { val = Convert.ToDouble(entry.Value); } catch { }
                         processedDict[key] = val;
 
+                        // 判断是否为 24 小时点位 (Day_x 或 Night_x)
                         if (key.StartsWith("Day_") || key.StartsWith("Night_")) isDayNightData = true;
                     }
 
                     double[] finalArray;
                     if (isDayNightData)
                     {
+                        // 获取当前实际班次
                         var currentClass = Global.GetCurrentClassTime();
                         bool isDayShift = currentClass.Status == ClassStatus.白班;
                         string prefix = isDayShift ? "Day_" : "Night_";
@@ -243,10 +319,16 @@ namespace BasicRegionNavigation.ViewModels
                             string key = $"{prefix}{i}";
                             finalArray[i] = processedDict.ContainsKey(key) ? processedDict[key] : 0;
                         }
-                        Application.Current.Dispatcher.Invoke(() => UpdateXLabelsByTime());
+
+                        // 【核心修改】：通过 moduleId 找到对应的模组对象并更新其 X 轴标签
+                        if (_modulesCache.TryGetValue(moduleId, out var targetModuleForLabels))
+                        {
+                            Application.Current.Dispatcher.Invoke(() => UpdateXLabelsByTime(targetModuleForLabels));
+                        }
                     }
                     else
                     {
+                        // 普通索引数据处理 (0, 1, 2...)
                         int maxIndex = 0;
                         foreach (var key in processedDict.Keys)
                             if (int.TryParse(key, out int idx) && idx > maxIndex) maxIndex = idx;
@@ -257,9 +339,17 @@ namespace BasicRegionNavigation.ViewModels
                     }
                     data = finalArray;
                 }
+
+                // 将处理好的数组分发给指定模组
+                if (_modulesCache.TryGetValue(moduleId, out var targetModule))
+                {
+                    targetModule.DispatchData(category, data);
+                }
+                return;
             }
+
             // =========================================================
-            // 2. 处理产品信息
+            // 2. 处理产品信息 (UpProductInfo / DnProductInfo)
             // =========================================================
             else if (category == ModuleDataCategory.UpProductInfo || category == ModuleDataCategory.DnProductInfo)
             {
@@ -274,8 +364,9 @@ namespace BasicRegionNavigation.ViewModels
                     data = stringDict;
                 }
             }
+
             // =========================================================
-            // 3. [重点修改] 处理报警信息
+            // 3. 处理报警信息 (WarningInfo)
             // =========================================================
             else if (category == ModuleDataCategory.WarningInfo)
             {
@@ -318,37 +409,31 @@ namespace BasicRegionNavigation.ViewModels
                         }
                     }
 
-                    // [关键修复]：不要只传递 data，而是直接在 UI 线程更新 ObservableCollection
+                    // 更新指定模组的报警列表
                     if (_modulesCache.TryGetValue(moduleId, out var module))
                     {
                         Application.Current.Dispatcher.Invoke(() =>
                         {
-                            // 直接操作 CurrentWarningInfo.AlarmList
-                            // 假设 ModuleModel 中已经初始化了 AlarmList
                             var collection = module.CurrentWarningInfo?.AlarmList;
                             if (collection != null)
                             {
                                 collection.Clear();
-                                foreach (var alarm in activeAlarms)
-                                {
-                                    collection.Add(alarm);
-                                }
+                                foreach (var alarm in activeAlarms) collection.Add(alarm);
                             }
                         });
-                        return; // 处理完毕，直接返回，跳过底部的 DispatchData
+                        return;
                     }
                 }
             }
 
             // =========================================================
-            // 4. 分发其他类型的数据 (Status, Capacity, PieInfo 等)
+            // 4. 分发其他类型的数据 (Status, Capacity 等)
             // =========================================================
-            if (_modulesCache.TryGetValue(moduleId, out var targetModule))
+            if (_modulesCache.TryGetValue(moduleId, out var genericTarget))
             {
-                targetModule.DispatchData(category, data);
+                genericTarget.DispatchData(category, data);
             }
-        }
-        // 切换模组的方法 (供前端 ComboBox 绑定)
+        }        // 切换模组的方法 (供前端 ComboBox 绑定)
         public void SwitchModule(string newId)
         {
             if (_modulesCache.TryGetValue(newId, out var model))
@@ -370,24 +455,27 @@ namespace BasicRegionNavigation.ViewModels
                     // 1. 构造 Status (状态) 数据
                     var statusData = new Dictionary<string, int>
             {
-                // 周边墩子
-                { "FeedStation1Status", random.Next(0, 4) },
-                { "FeedStation2Status", random.Next(0, 4) },
-                { "FeedStation3Status", random.Next(0, 4) },
+                // ================= 修改部分开始 =================
+                // 将 int 状态 (0-3) 改为 bool 模拟 (0-1)
+                // random.Next(0, 2) 只会生成 0 或 1
+                // 1 = True (绿色), 0 = False (红色)
+                { "FeedStation1Status", random.Next(0, 2) },
+                { "FeedStation2Status", random.Next(0, 2) },
+                { "FeedStation3Status", random.Next(0, 2) },
                 { "HangerOkStation1Status", random.Next(0, 2) },
                 { "HangerOkStation2Status", random.Next(0, 2) },
                 { "HangerNgStationStatus", random.Next(0, 2) },
+                // ================= 修改部分结束 =================
 
-                // 机械手
+                // 机械手 (保持原样，可能有多种状态)
                 { "ProductRobotStatus", random.Next(0, 4) },
                 { "HangerRobotStatus", random.Next(0, 4) },
 
-                // 供料机与翻转台
+                // 供料机与翻转台 (保持原样)
                 { "FeederAStatus", random.Next(0, 4) },
                 { "FeederBStatus", random.Next(0, 4) },
                 { "FlipperStatus", random.Next(0, 4) }
             };
-
                     // 2. 构造 Capacity (产能) 数据
                     var capacityData = new Dictionary<string, int>
             {
@@ -405,6 +493,7 @@ namespace BasicRegionNavigation.ViewModels
                 }
             });
         }
+
         private void StartProductInfoSimulation()
         {
             // 开启后台任务：模拟产品信息 (ProductInfo)
@@ -595,7 +684,7 @@ namespace BasicRegionNavigation.ViewModels
             SwitchModule(index);
         }
 
-        
+
 
 
 
@@ -692,31 +781,45 @@ namespace BasicRegionNavigation.ViewModels
 
         private Brush GetBrushByStatus(string value)
         {
+            // 这里处理来自前端绑定时的字符串值
             return value switch
             {
-                "3" => Brushes.Gray,
-                "2" => Brushes.Red,
-                "1" => Brushes.Lime,
-                "0" => Brushes.Red,
-                _ => Brushes.Aqua
+                // --- 原有逻辑 (int) ---
+                "3" => Brushes.Gray,  // 比如：离线/未知
+                "2" => Brushes.Red,   // 比如：故障
+                "1" => Brushes.Lime,  // 1 对应 绿色 (正常/连接)
+                "0" => Brushes.Red,   // 0 对应 红色 (异常/断开)
+
+                // --- 新增逻辑 (bool) ---
+                // 如果数据源是 bool 类型，ToString() 会变成 "True" 或 "False"
+                "True" => Brushes.Lime,  // True = 绿色
+                "False" => Brushes.Red,  // False = 红色
+
+                // 忽略大小写的兼容写法 (可选)
+                string s when s.Equals("true", StringComparison.OrdinalIgnoreCase) => Brushes.Lime,
+                string s when s.Equals("false", StringComparison.OrdinalIgnoreCase) => Brushes.Red,
+
+                _ => Brushes.Aqua     // 默认颜色
             };
         }
 
-        public void UpdateXLabelsByTime()
+        // 修改：增加 ModuleModel 参数
+        public void UpdateXLabelsByTime(ModuleModel module)
         {
-            if (CurrentModule.CurrentColumnInfo.XAxes == null || CurrentModule.CurrentColumnInfo.XAxes.Length == 0)
+            if (module?.CurrentColumnInfo?.XAxes == null || module.CurrentColumnInfo.XAxes.Length == 0)
                 return;
 
             string[] labels;
             var currentClassTime = Global.GetCurrentClassTime();
+
             if (currentClassTime.Status == ClassStatus.白班)
                 labels = new[] { "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19" };
             else
                 labels = new[] { "20", "21", "22", "23", "0", "1", "2", "3", "4", "5", "6", "7" };
 
-            CurrentModule.CurrentColumnInfo.XAxes[0].Labels = labels;
+            // 更新传入模组的标签，而不是全局的 CurrentModule
+            module.CurrentColumnInfo.XAxes[0].Labels = labels;
         }
-
         public void UpdateAlarmList(IEnumerable<AlarmInfo> newAlarms)
         {
             Application.Current.Dispatcher.Invoke(() =>

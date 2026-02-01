@@ -9,6 +9,7 @@ using HandyControl.Controls;
 using Microsoft.Win32;
 using Prism.Events;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -24,6 +25,35 @@ namespace BasicRegionNavigation.ViewModels
     {
         [ObservableProperty]
         private CurrentWarningInfo _currentWarningInfo = new CurrentWarningInfo();
+        private readonly IModbusService _modbusService;
+        private readonly Dictionary<string, List<AlarmInfo>> _moduleAlarmsCache = new Dictionary<string, List<AlarmInfo>>();
+
+        // 报警描述字典 (Key: UI标识, Value: 中文描述)
+        private readonly Dictionary<string, string> _alarmDescriptions = new Dictionary<string, string>
+        {
+            // --- 供料机 A ---
+            { "FeederASensorFault",       "供料机A-传感器故障" },
+            { "FeederAComponentFault",    "供料机A-气缸/元件故障" },
+            { "FeederATraceCommFault",    "供料机A-轨道通讯故障" },
+            { "FeederAMasterCommFault",   "供料机A-主控通讯故障" },
+            
+            // --- 供料机 B ---
+            { "FeederBSensorFault",       "供料机B-传感器故障" },
+            { "FeederBComponentFault",    "供料机B-气缸/元件故障" },
+            { "FeederBTraceCommFault",    "供料机B-轨道通讯故障" },
+            { "FeederBMasterCommFault",   "供料机B-主控通讯故障" },
+            
+            // --- 翻转台 ---
+            { "FlipperSensorFault",       "翻转台-传感器故障" },
+            { "FlipperComponentFault",    "翻转台-气缸/元件故障" },
+            { "FlipperTraceCommFault",    "翻转台-轨道通讯故障" },
+            { "FlipperHostCommFault",     "翻转台-上位机通讯故障" },
+            { "FlipperRobotCommFault",    "翻转台-机器人通讯故障" },
+            { "FlipperDoorTriggered",     "翻转台-安全门触发" },
+            { "FlipperSafetyCurtain",     "翻转台-光幕触发" },
+            { "FlipperEmergencyStop",     "翻转台-急停按下" },
+            { "FlipperScannerCommFault",  "翻转台-扫码枪通讯故障" }
+        };
 
         private void StartWarningSimulation()
         {
@@ -117,12 +147,136 @@ namespace BasicRegionNavigation.ViewModels
         // 构造函数与初始化 (Constructor & Init)
         // -----------------------------------------------------------------------
 
-        public AlarmMonitorViewModel(IEventAggregator ea)
+        public AlarmMonitorViewModel(IEventAggregator ea, IModbusService modbusService)
         {
             ea.GetEvent<MyDataUpdatedEvent>().Subscribe(OnMyDataUpdated, ThreadOption.UIThread);
-            StartWarningSimulation();
+            _modbusService = modbusService;
+
+            // 1. 注册数据监听
+            _modbusService.OnModuleDataChanged += HandleDataChanged;
+
+            // 2. 初始化订阅
+            InitializeSubscriptions();
+            //StartWarningSimulation();
+        }
+        private void InitializeSubscriptions()
+        {
+            // 定义需要监控的所有模组 ID
+            var allModuleIds = new[] { "1", "2" };
+
+            // 定义点位映射 (Key: UI标识, Value: PLC点位后缀)
+            // 这里的 Value 必须与 CSV 中的 TagName 后缀一致
+            var warningMapping = new Dictionary<string, string>
+            {
+                { "FeederASensorFault",       "PLC_Feeder_A_SensorFault" },
+                { "FeederAComponentFault",    "PLC_Feeder_A_ComponentFault" },
+                { "FeederATraceCommFault",    "PLC_Feeder_A_TraceCommFault" },
+                { "FeederAMasterCommFault",   "PLC_Feeder_A_MasterCommFault" },
+
+                { "FeederBSensorFault",       "PLC_Feeder_B_SensorFault" },
+                { "FeederBComponentFault",    "PLC_Feeder_B_ComponentFault" },
+                { "FeederBTraceCommFault",    "PLC_Feeder_B_TraceCommFault" },
+                { "FeederBMasterCommFault",   "PLC_Feeder_B_MasterCommFault" },
+
+                { "FlipperSensorFault",       "PLC_Flipper_SensorFault" },
+                { "FlipperComponentFault",    "PLC_Flipper_ComponentFault" },
+                { "FlipperTraceCommFault",    "PLC_Flipper_TraceCommFault" },
+                { "FlipperHostCommFault",     "PLC_Flipper_HostCommFault" },
+                { "FlipperRobotCommFault",    "PLC_Flipper_RobotCommFault" },
+                { "FlipperDoorTriggered",     "PLC_Flipper_DoorTriggered" },
+                { "FlipperSafetyCurtain",     "PLC_Flipper_SafetyCurtainTriggered" },
+                { "FlipperEmergencyStop",     "PLC_Flipper_EmergencyStop" },
+                { "FlipperScannerCommFault",  "PLC_Flipper_ScannerCommFault" }
+            };
+
+            // 循环订阅所有模组
+            foreach (var id in allModuleIds)
+            {
+                _modbusService.SubscribeDynamicGroup(
+                    moduleId: id,
+                    category: ModuleDataCategory.WarningInfo,
+                    fieldMapping: warningMapping
+                );
+            }
         }
 
+        private void HandleDataChanged(string moduleId, ModuleDataCategory category, object data)
+        {
+            // 只处理报警信息
+            if (category != ModuleDataCategory.WarningInfo) return;
+
+            if (data is IDictionary dict)
+            {
+                var currentModuleAlarms = new List<AlarmInfo>();
+
+                // 1. 解析当前模组的报警数据
+                foreach (DictionaryEntry entry in dict)
+                {
+                    string key = entry.Key?.ToString();
+                    if (string.IsNullOrEmpty(key)) continue;
+
+                    bool isTriggered = false;
+                    // 兼容不同类型的数据源 (bool, int, string)
+                    if (entry.Value is bool bVal) isTriggered = bVal;
+                    else if (entry.Value is int iVal) isTriggered = iVal != 0;
+                    else if (entry.Value is string sVal) isTriggered = (sVal == "1" || sVal.Equals("True", StringComparison.OrdinalIgnoreCase));
+
+                    if (isTriggered)
+                    {
+                        // 获取中文描述
+                        string fullMsg = _alarmDescriptions.ContainsKey(key) ? _alarmDescriptions[key] : $"未知报警: {key}";
+
+                        // 解析设备名和描述 (例如 "供料机A-传感器故障")
+                        string deviceName = $"模组{moduleId}"; // 默认显示模组号
+                        string descText = fullMsg;
+
+                        var parts = fullMsg.Split(new[] { '-', ' ' }, 2, StringSplitOptions.RemoveEmptyEntries);
+                        if (parts.Length >= 2)
+                        {
+                            deviceName = $"{moduleId}#{parts[0]}"; // 例如: 1#供料机A
+                            descText = parts[1];
+                        }
+
+                        currentModuleAlarms.Add(new AlarmInfo
+                        {
+                            // Index 在合并时重新生成
+                            PropertyKey = key,
+                            Time = DateTime.Now,
+                            Device = deviceName,
+                            Description = descText
+                        });
+                    }
+                }
+
+                // 2. 更新缓存并刷新 UI
+                lock (_moduleAlarmsCache)
+                {
+                    // 更新当前模组的缓存
+                    _moduleAlarmsCache[moduleId] = currentModuleAlarms;
+
+                    // 汇总所有模组的报警
+                    var allAlarms = _moduleAlarmsCache.Values.SelectMany(x => x).OrderBy(x => x.Device).ToList();
+
+                    // 重新分配序号
+                    int index = 1;
+                    foreach (var alarm in allAlarms)
+                    {
+                        alarm.Index = index++;
+                    }
+
+                    // 3. 线程安全更新 ObservableCollection
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        var collection = _currentWarningInfo.AlarmList;
+                        collection.Clear();
+                        foreach (var alarm in allAlarms)
+                        {
+                            collection.Add(alarm);
+                        }
+                    });
+                }
+            }
+        }
         private void OnMyDataUpdated(IEnumerable<AlarmInfo> value)
         {
             ReceivedValue = value;

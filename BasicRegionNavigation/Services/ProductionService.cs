@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Dm;
+using Microsoft.Extensions.DependencyInjection;
 using MyDatabase;
 using MyLog;
 using SqlSugar;
@@ -20,13 +21,13 @@ namespace BasicRegionNavigation.Services
         // 1. 明确注入：你需要操作哪两张表，就注入哪两个仓储
         private readonly IRepository<DeviceLog> _logRepo;
         private readonly IRepository<ProductionRecord> _prodRepo;
-
+        private readonly ISqlSugarClientFactory _clientFactory;
         public ProductionService(
-
+            ISqlSugarClientFactory clientFactory,
             IRepository<DeviceLog> logRepo,
             IRepository<ProductionRecord> prodRepo)
         {
-
+            _clientFactory = clientFactory;
             _logRepo = logRepo;
             _prodRepo = prodRepo;
         }
@@ -43,7 +44,65 @@ namespace BasicRegionNavigation.Services
             };
         }
 
+        public async Task<Dictionary<string, Dictionary<string, int>>> GetProductStatsByModuleAndProjectAsync(DateTime startTime, DateTime endTime)
+        {
+            try
+            {
+                using var db = _clientFactory.GetClient();
 
+                // 1. 数据库分组查询：同时按 [设备名] 和 [项目号] 分组
+                // 注意：这里使用你的实体字段名 UpLoadDeivceName (保留你的拼写习惯)
+                var list = await db.Queryable<ProductionRecord>()
+                    .Where(x => x.CreateTime >= startTime && x.CreateTime <= endTime)
+                    .GroupBy(x => new { x.UpLoadDeivceName, x.ProjectNumber })
+                    .Select(x => new
+                    {
+                        DeviceName = x.UpLoadDeivceName,
+                        Project = x.ProjectNumber,
+                        Count = SqlFunc.AggregateCount(x.Id)
+                    })
+                    .ToListAsync();
+
+                // 2. 在内存中重组数据结构
+                var result = new Dictionary<string, Dictionary<string, int>>();
+
+                foreach (var item in list)
+                {
+                    // --- A. 解析模组ID ---
+                    // 假设 DeviceName 格式为 "2_PLC_Feeder_A" -> 模组ID 为 "2"
+                    string moduleId = "1"; // 默认值，防止空数据
+                    if (!string.IsNullOrEmpty(item.DeviceName))
+                    {
+                        var parts = item.DeviceName.Split('_');
+                        if (parts.Length > 0)
+                        {
+                            moduleId = parts[0];
+                        }
+                    }
+
+                    // --- B. 初始化该模组的字典 ---
+                    if (!result.ContainsKey(moduleId))
+                    {
+                        result[moduleId] = new Dictionary<string, int>();
+                    }
+
+                    // --- C. 填充项目数据 ---
+                    string projectKey = string.IsNullOrEmpty(item.Project) ? "未知项目" : item.Project;
+
+                    if (result[moduleId].ContainsKey(projectKey))
+                        result[moduleId][projectKey] += item.Count;
+                    else
+                        result[moduleId][projectKey] = item.Count;
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[统计查询异常] {ex.Message}");
+                return new Dictionary<string, Dictionary<string, int>>();
+            }
+        }
         public async Task ProcessProductDataAsync(StationProcessContext context)
         {
             // ---------------------------------------------------------
@@ -332,6 +391,7 @@ namespace BasicRegionNavigation.Services
         DateTime? startTime = null,
         DateTime? endTime = null,
         Dictionary<string, object>? filters = null);
+        Task<Dictionary<string, Dictionary<string, int>>> GetProductStatsByModuleAndProjectAsync(DateTime startTime, DateTime endTime);
     }
     // 1. 定义工序类型（明确告诉程序当前是哪一步）
     public enum StationProcessType
