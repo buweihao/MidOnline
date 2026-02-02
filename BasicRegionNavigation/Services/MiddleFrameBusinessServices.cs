@@ -2,7 +2,6 @@
 using BasicRegionNavigation.ViewModels;
 using DocumentFormat.OpenXml.Spreadsheet;
 using Microsoft.Extensions.DependencyInjection;
-using My.Services;
 using MyLog;
 using MyModbus;
 using System;
@@ -11,6 +10,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using static BasicRegionNavigation.Services.MiddleFrameBusinessServices;
 
 namespace BasicRegionNavigation.Services
 {
@@ -32,8 +32,11 @@ namespace BasicRegionNavigation.Services
         //三、翻转台的小时数据采集，需要在每个整点的最后时刻将某个寄存器的数据作为小时产能数据存入数据库,并且伴随部分其他的小时数据
         void FlipperHourlyDataCollectionMissionStart();
 
+        //控制两个小时任务的周期
+        void StartCollectionTask(CollectionFrequency frequency);
+
         //四、转产
-         void ChangeoverMissionStart();
+        void ChangeoverMissionStart();
 
         // 五、时间写入 (新增)
         void TimeSyncMissionStart();
@@ -48,7 +51,7 @@ namespace BasicRegionNavigation.Services
         private ILoggerService _logger => _serviceProvider.GetRequiredService<ILoggerService>();
         private readonly IServiceProvider _serviceProvider;
 
-        public MiddleFrameBusinessServices(IServiceProvider serviceProvider,DataCollectionEngine engine, DataBus bus, IProductionService productionService, IFlipperHourlyService flipperHourlyService, IUpDropHourlyService upDropHourlyCapacityService)
+        public MiddleFrameBusinessServices(IServiceProvider serviceProvider, DataCollectionEngine engine, DataBus bus, IProductionService productionService, IFlipperHourlyService flipperHourlyService, IUpDropHourlyService upDropHourlyCapacityService)
         {
             //构造函数
             _serviceProvider = serviceProvider;
@@ -58,11 +61,17 @@ namespace BasicRegionNavigation.Services
             _productionService = productionService;
             _engine = engine;
         }
+        public enum CollectionFrequency
+        {
+            Hourly,     // 每小时 (xx:59:59 触发)
+            Minutely,   // 每分钟 (xx:xx:59 触发)
+            PerSecond   // 每秒 (严格按秒触发)
+        }
         /// <summary>
         /// [入口] 启动自动采集任务 (更新版)
         /// 确保此方法只被调用一次
         /// </summary>
-        public void StartHourlyCollectionTask()
+        public void StartCollectionTask(CollectionFrequency frequency)
         {
             Task.Factory.StartNew(async () =>
             {
@@ -70,31 +79,67 @@ namespace BasicRegionNavigation.Services
                 {
                     try
                     {
-                        // 1. 计算等待时间 (对齐到 xx:59:59)
+                        // 1. 根据频率计算下一次触发时间
                         var now = DateTime.Now;
-                        var nextTarget = new DateTime(now.Year, now.Month, now.Day, now.Hour, 59, 59);
-                        if (now >= nextTarget) nextTarget = nextTarget.AddHours(1);
-                        var delay = nextTarget - now;
+                        DateTime nextTarget = now;
 
-                        if (delay.TotalMilliseconds > 0) await Task.Delay(delay);
+                        switch (frequency)
+                        {
+                            case CollectionFrequency.Hourly:
+                                // 原有逻辑：对齐到 xx:59:59
+                                nextTarget = new DateTime(now.Year, now.Month, now.Day, now.Hour, 59, 59);
+                                // 如果当前时间已经过了 xx:59:59，就设定为下个小时
+                                if (now >= nextTarget)
+                                    nextTarget = nextTarget.AddHours(1);
+                                break;
+
+                            case CollectionFrequency.Minutely:
+                                // 新增逻辑：对齐到 xx:xx:59
+                                nextTarget = new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, 59);
+                                // 如果当前时间已经过了本分钟的59秒，就设定为下一分钟
+                                if (now >= nextTarget)
+                                    nextTarget = nextTarget.AddMinutes(1);
+                                break;
+
+                            case CollectionFrequency.PerSecond:
+                                // 新增逻辑：对齐到下一秒的整点 (防止漂移)
+                                // 比如现在是 12:00:01.200，下一次就是 12:00:02.000
+                                nextTarget = now.AddSeconds(1).AddMilliseconds(-now.Millisecond);
+                                break;
+                        }
+
+                        // 计算需要等待的时间
+                        var delay = nextTarget - DateTime.Now; // 重新取Now以提高精度
+
+                        // 如果计算出的延时大于0，则等待；否则直接执行(可能是极其微小的计算耗时导致)
+                        if (delay.TotalMilliseconds > 0)
+                            await Task.Delay(delay);
 
                         // 2. 执行所有设备的采集任务
-                        // 供料机采集
+                        // 注意：如果采集任务耗时很长且频率是每秒，可能会导致任务堆积或跳秒
+                        // 建议这里可以不await，或者确保采集非常快
                         FeedersHourlyDataCollectionMissionStart();
-
-                        // [新增] 翻转台采集
                         FlipperHourlyDataCollectionMissionStart();
 
-                        // 3. 防止重复触发
-                        await Task.Delay(2000);
+                        // 3. 特殊处理：防止由于代码执行极快，在同一秒/同一时刻内重复触发
+                        // 对于“每秒”模式，我们依靠nextTarget计算自动推到下一秒，不需要额外延时
+                        // 对于“每分/每时”，为了安全起见，可以简单挂起一小会儿，但要避免影响下次计算
+                        if (frequency != CollectionFrequency.PerSecond)
+                        {
+                            await Task.Delay(1000);
+                        }
                     }
                     catch (Exception ex)
                     {
-                        await Task.Delay(60000);
+                        // 记录日志...
+                        // 出错后等待一段时间再重试，避免死循环刷报错
+                        await Task.Delay(frequency == CollectionFrequency.PerSecond ? 1000 : 60000);
                     }
                 }
             }, TaskCreationOptions.LongRunning);
         }
+
+
 
         #region  业务一、产品信息采集
         private const string ModuleId = "1"; // 建议放入配置或作为类属性
@@ -195,8 +240,8 @@ namespace BasicRegionNavigation.Services
                     var plcData = new Dictionary<string, object>
                     {
                         { "FixtureCode", fixture },
-                        { "ProjectNo", projectNo },
-                        { "Category", category },
+                        { "ProjectNumber", projectNo },
+                        { "ProductCategory", category },
                         { "Side", flipper.IsSideA ? "A" : "B" } // 记录是哪一面
                     };
 
@@ -442,7 +487,7 @@ namespace BasicRegionNavigation.Services
                 // =========================================================
                 // 4. 复位信号：将触发点写回 0
                 // =========================================================
-               //写入0表示转产完成，防止重复触发
+                //写入0表示转产完成，防止重复触发
                 _engine.WriteTag(triggerTag, (short)0);
                 //写入11通知转产
                 ChangeoverFlipperTrigger(int.Parse(moduleId));

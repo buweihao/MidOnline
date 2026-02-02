@@ -8,7 +8,6 @@ using LiveChartsCore;
 using LiveChartsCore.SkiaSharpView;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using My.Services;
 using Prism.DryIoc; // 提供 GetContainer 扩展
 using Prism.Ioc;
 using Prism.Modularity;
@@ -102,24 +101,6 @@ namespace BasicRegionNavigation
                 }
             }
 
-            try
-            {
-                // 从容器中解析后台服务 (此时 DryIoc 已经拥有了 populate 进来的服务)
-                var collectorService = Container.Resolve<HourlyDataCollectionService>();
-
-                // 启动服务
-                // 使用 CancellationToken.None 表示除非程序关闭，否则不取消
-                await collectorService.StartAsync(CancellationToken.None);
-
-                // 或者如果你想在 Output 窗口看到日志
-                System.Diagnostics.Debug.WriteLine("后台采集服务已启动...");
-            }
-            catch (Exception ex)
-            {
-                // 确保 GrowlHelper 已经被正确引用或初始化
-                // GrowlHelper.Error($"后台服务启动失败: {ex.Message}");
-                MessageBox.Show($"后台服务启动失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
         }
 
 

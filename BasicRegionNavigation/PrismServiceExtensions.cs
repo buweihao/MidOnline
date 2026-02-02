@@ -1,6 +1,5 @@
 ﻿using BasicRegionNavigation.Services;
 using Microsoft.Extensions.DependencyInjection;
-using My.Services;
 using MyDatabase;
 using MyLog;
 using MyModbus;
@@ -10,6 +9,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static BasicRegionNavigation.Services.UpDropHourlyService;
 
 namespace BasicRegionNavigation.Helper
 {
@@ -30,9 +30,6 @@ namespace BasicRegionNavigation.Helper
             services.AddSingleton<IConfigService>(new ConfigService(new string[] { "Configs/config.json", "Configs/product_setting.json" }));
 
             // 4. 【关键】注册后台任务 (BackgroundService)
-            // 注意：在 Prism 中，这里只是注册了类型，不会自动运行，需要后续手动 Start
-            services.AddSingleton<HourlyDataCollectionService>();
-
 
             // 5. 配置 Log
             // 将 IMyLogConfig 映射到已经注册的 IProductionService 实例
@@ -63,45 +60,45 @@ namespace BasicRegionNavigation.Helper
                 // 1. 定义克隆清单
                 var cloneList = new[]
                 {
-            //(Template: "PLC_Peripheral", ModuleId: "1", Ip: "127.0.0.1"),
+            (Template: "PLC_Peripheral", ModuleId: "1", Ip: "127.0.0.1"),
 
-            //(Template: "PLC_Robot",      ModuleId: "1", Ip: "127.0.0.1"),
+            (Template: "PLC_Robot",      ModuleId: "1", Ip: "127.0.0.1"),
 
-            //(Template: "PLC_Feeder_A",   ModuleId: "1", Ip: "127.0.0.2"),
+            (Template: "PLC_Feeder_A",   ModuleId: "1", Ip: "127.0.0.2"),
 
-            //(Template: "PLC_Feeder_B",   ModuleId: "1", Ip: "127.0.0.3"),
+            (Template: "PLC_Feeder_B",   ModuleId: "1", Ip: "127.0.0.3"),
 
-            //(Template: "PLC_Flipper",    ModuleId: "1", Ip: "127.0.0.1"),
+            (Template: "PLC_Flipper",    ModuleId: "1", Ip: "127.0.0.1"),
 
-            (Template: "PLC_Peripheral", ModuleId: "1", Ip: "10.120.93.99"),
+            //(Template: "PLC_Peripheral", ModuleId: "1", Ip: "10.120.93.99"),
 
-            (Template: "PLC_Robot",      ModuleId: "1", Ip: "10.120.93.99"),
+            //(Template: "PLC_Robot",      ModuleId: "1", Ip: "10.120.93.99"),
 
-            (Template: "PLC_Feeder_A",   ModuleId: "1", Ip: "10.120.93.97"),
+            //(Template: "PLC_Feeder_A",   ModuleId: "1", Ip: "10.120.93.97"),
 
-            (Template: "PLC_Feeder_B",   ModuleId: "1", Ip: "10.120.93.98"),
+            //(Template: "PLC_Feeder_B",   ModuleId: "1", Ip: "10.120.93.98"),
 
-            (Template: "PLC_Flipper",    ModuleId: "1", Ip: "10.120.93.99"),
+            //(Template: "PLC_Flipper",    ModuleId: "1", Ip: "10.120.93.99"),
 
-            //(Template: "PLC_Peripheral", ModuleId: "2", Ip: "127.0.0.4"),
+            (Template: "PLC_Peripheral", ModuleId: "2", Ip: "127.0.0.4"),
 
-            //(Template: "PLC_Robot",      ModuleId: "2", Ip: "127.0.0.4"),
+            (Template: "PLC_Robot",      ModuleId: "2", Ip: "127.0.0.4"),
 
-            //(Template: "PLC_Feeder_A",   ModuleId: "2", Ip: "127.0.0.5"),
+            (Template: "PLC_Feeder_A",   ModuleId: "2", Ip: "127.0.0.5"),
 
-            //(Template: "PLC_Feeder_B",   ModuleId: "2", Ip: "127.0.0.6"),
+            (Template: "PLC_Feeder_B",   ModuleId: "2", Ip: "127.0.0.6"),
 
-            //(Template: "PLC_Flipper",    ModuleId: "2", Ip: "127.0.0.4"),
+            (Template: "PLC_Flipper",    ModuleId: "2", Ip: "127.0.0.4"),
 
-            (Template: "PLC_Peripheral", ModuleId: "2", Ip: "10.120.93.89"),
+            //(Template: "PLC_Peripheral", ModuleId: "2", Ip: "10.120.93.89"),
 
-            (Template: "PLC_Robot",      ModuleId: "2", Ip: "10.120.93.89"),
+            //(Template: "PLC_Robot",      ModuleId: "2", Ip: "10.120.93.89"),
 
-            (Template: "PLC_Feeder_A",   ModuleId: "2", Ip: "10.120.93.87"),
+            //(Template: "PLC_Feeder_A",   ModuleId: "2", Ip: "10.120.93.87"),
 
-            (Template: "PLC_Feeder_B",   ModuleId: "2", Ip: "10.120.93.88"),
+            //(Template: "PLC_Feeder_B",   ModuleId: "2", Ip: "10.120.93.88"),
 
-            (Template: "PLC_Flipper",    ModuleId: "2", Ip: "10.120.93.89"),
+            //(Template: "PLC_Flipper",    ModuleId: "2", Ip: "10.120.93.89"),
         };
 
                 var templatesToRemove = new HashSet<Device>();

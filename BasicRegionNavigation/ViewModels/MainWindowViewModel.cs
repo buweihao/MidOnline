@@ -5,7 +5,6 @@ using CommunityToolkit.Mvvm.ComponentModel; // 核心：替换 BindableBase
 using CommunityToolkit.Mvvm.Input;        // 核心：替换手动 Command 定义
 using Core;
 using HandyControl.Controls;
-using My.Services;
 using MyModbus;
 using Prism.Commands; // 保留 Prism 命令，用于导航
 using Prism.Mvvm;     // 如果不再使用 BindableBase，可以移除此引用，但 Prism.Regions 可能需要
@@ -14,6 +13,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
+using static BasicRegionNavigation.Services.MiddleFrameBusinessServices;
 namespace BasicRegionNavigation.ViewModels
 {
     // 1. 必须添加 partial 关键字
@@ -93,6 +93,7 @@ namespace BasicRegionNavigation.ViewModels
             _flipperHourlyCapacityService.ProductCollectionMissionStart();
             _flipperHourlyCapacityService.ChangeoverMissionStart();
             _flipperHourlyCapacityService.TimeSyncMissionStart();
+            //_flipperHourlyCapacityService.StartCollectionTask(CollectionFrequency.Minutely);
         }
 
         IMiddleFrameBusinessServices _flipperHourlyCapacityService;

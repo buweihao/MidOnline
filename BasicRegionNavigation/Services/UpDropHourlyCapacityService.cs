@@ -35,71 +35,113 @@ namespace BasicRegionNavigation.Services
         {
             if (data == null || data.Count == 0) return;
 
-            // 1. 提取当前数据
-            // 核心：读取累计产能 TotalCapacity
-            int currTotalCap = GetInt(data, "TotalCapacity");
+            // ---------------------------------------------------------
+            // 1. 提取当前数据 (全部视为累计值)
+            // ---------------------------------------------------------
             string projectNo = data.ContainsKey("ProjectNo") ? data["ProjectNo"]?.ToString() ?? "-" : "-";
 
-            // 2. 获取或初始化上一次的状态
+            // 读取当前的“电表读数”
+            int currTotalCap = GetInt(data, "TotalCapacity");
+            int currStandby = GetInt(data, "Hourly_StandbyTimeMin"); // 虽叫Hourly，实际是Total
+            int currFaultTime = GetInt(data, "Hourly_FaultTimeMin");
+            int currFaultCount = GetInt(data, "Hourly_FaultCount");
+            int currSystemNG = GetInt(data, "Hourly_SystemNG");
+            int currMatLost = GetInt(data, "Hourly_MaterialLost");
+
+            // ---------------------------------------------------------
+            // 2. 获取或初始化状态 (从内存中拿出上一次的读数)
+            // ---------------------------------------------------------
             var state = _deviceStates.GetOrAdd(deviceName, new DeviceState
             {
+                // 如果是新设备，初始化时先把当前值赋进去，避免第一次计算出错
                 LastTotalCapacity = currTotalCap,
+                LastStandbyTime = currStandby,
+                LastFaultTime = currFaultTime,
+                LastFaultCount = currFaultCount,
+                LastSystemNG = currSystemNG,
+                LastMaterialLost = currMatLost,
                 IsFirstRun = true
             });
 
-            // 3. 计算产能增量 (核心算法)
+            // ---------------------------------------------------------
+            // 3. 计算增量 (核心逻辑: 当前累计值 - 上次累计值)
+            // ---------------------------------------------------------
+            // 假设 CalculateDelta 内部处理了负数情况(如PLC清零重置)
             int deltaCap = CalculateDelta(currTotalCap, state.LastTotalCapacity);
+            int deltaStandby = CalculateDelta(currStandby, state.LastStandbyTime);
+            int deltaFaultTime = CalculateDelta(currFaultTime, state.LastFaultTime);
+            int deltaFaultCount = CalculateDelta(currFaultCount, state.LastFaultCount);
+            int deltaSystemNG = CalculateDelta(currSystemNG, state.LastSystemNG);
+            int deltaMatLost = CalculateDelta(currMatLost, state.LastMaterialLost);
 
-            // 4. 首次运行特殊处理
-            // 如果程序刚启动，我们无法知道过去一小时产了多少，
-            // 为了避免数据突变（例如算出几万的产量），通常第一笔记录记为 0，或者跳过不记。
-            // 这里选择记为 0，并同步基准。
+            // ---------------------------------------------------------
+            // 4. 首次运行特殊处理 (截断逻辑)
+            // ---------------------------------------------------------
+            // 如果程序刚启动，或者设备第一次上线，我们不知道过去一小时发生了什么。
+            // 为了防止把设备运行了3年的累计值全部算在当前这一小时里，强制归零。
             if (state.IsFirstRun)
             {
                 deltaCap = 0;
-                state.IsFirstRun = false;
+                deltaStandby = 0;
+                deltaFaultTime = 0;
+                deltaFaultCount = 0;
+                deltaSystemNG = 0;
+                deltaMatLost = 0;
+
+                state.IsFirstRun = false; // 标记已运行过
             }
 
-            // 5. 更新内存状态 (为下个小时做准备)
+            // ---------------------------------------------------------
+            // 5. 更新内存状态 (保存当前值，供下个小时做减数)
+            // ---------------------------------------------------------
             state.LastTotalCapacity = currTotalCap;
+            state.LastStandbyTime = currStandby;
+            state.LastFaultTime = currFaultTime;
+            state.LastFaultCount = currFaultCount;
+            state.LastSystemNG = currSystemNG;
+            state.LastMaterialLost = currMatLost;
 
-            // 6. 构造记录
+            // ---------------------------------------------------------
+            // 6. 构造记录 (存入数据库的是增量)
+            // ---------------------------------------------------------
             var record = new UpDropHourlyRecord
             {
                 DeviceName = deviceName,
                 ProjectNumber = projectNo,
+                CreateTime = DateTime.Now,
 
-                // 产能是计算出来的增量
+                // 存入增量值
                 HourlyCapacity = deltaCap,
-                // 留底
-                RawTotalCapacity = currTotalCap,
+                HourlyStandbyTimeMin = deltaStandby,
+                HourlyFaultTimeMin = deltaFaultTime,
+                HourlyFaultCount = deltaFaultCount,
+                HourlySystemNG = deltaSystemNG,
+                HourlyMaterialLost = deltaMatLost,
 
-                // 其他字段直接取值 (PLC如果这些字段也是累计值，也需要做差值；如果是只存当前小时的快照值，则直接存)
-                // 假设您的CSV配置 implying 这些是 "Hourly_..." 即 PLC 已经算好了当前小时的值
-                HourlyStandbyTimeMin = GetInt(data, "Hourly_StandbyTimeMin"),
-                HourlyFaultTimeMin = GetInt(data, "Hourly_FaultTimeMin"),
-                HourlyFaultCount = GetInt(data, "Hourly_FaultCount"),
-                HourlySystemNG = GetInt(data, "Hourly_SystemNG"),
-                HourlyMaterialLost = GetInt(data, "Hourly_MaterialLost"),
-
-                CreateTime = DateTime.Now
+                // 建议：保留一个原始读数 TotalCapacity 方便日后核对数据的连续性
+                RawTotalCapacity = currTotalCap
             };
 
             // 7. 入库
             await _repo.InsertAsync(record);
         }
 
-        // 增量计算逻辑
+        // 附带：增量计算辅助方法 (防止你忘了处理PLC归零的情况)
         private int CalculateDelta(int current, int last)
         {
-            int delta = current - last;
-            // 如果 delta < 0，说明PLC寄存器被清零/回滚了
-            // 此时认为 current 就是本小时新增量
-            if (delta < 0) return current;
-            return delta;
-        }
-
-        // 安全获取整型
+            // 正常情况：当前 100 - 上次 80 = 20
+            if (current >= last)
+            {
+                return current - last;
+            }
+            else
+            {
+                // 异常情况：PLC复位了，当前 5 - 上次 10000
+                // 策略1：认为这5个都是新增的
+                return current;
+                // 策略2：如果有最大值(如65535)，可以做回环计算 (current + Max - last)
+            }
+        }        // 安全获取整型
         private int GetInt(Dictionary<string, object> d, string key)
         {
             if (d.TryGetValue(key, out var val) && val != null)
@@ -110,44 +152,58 @@ namespace BasicRegionNavigation.Services
         }
 
         // 内部状态类
-        private class DeviceState
+        public class DeviceState
         {
+            public bool IsFirstRun { get; set; } = true;
+
+            // --- 通用字段 ---
             public int LastTotalCapacity { get; set; }
-            public bool IsFirstRun { get; set; }
+            public int LastStandbyTime { get; set; }
+            public int LastFaultTime { get; set; }
+            public int LastFaultCount { get; set; }
+
+            // --- 供料机 (Feeder) 特有 ---
+            public int LastSystemNG { get; set; }
+            public int LastMaterialLost { get; set; }
+
+            // --- [新增] 翻转台 (Flipper) 特有 ---
+            public int LastMixingQty { get; set; }      // 混料数量
+            public int LastScanNGQty { get; set; }      // 扫码NG数量
+            public int LastSysFeedbackQty { get; set; } // 系统回传数量
         }
+
+        [SugarTable("UpDrop_Hourly_Record")]
+        public class UpDropHourlyRecord
+        {
+            [SugarColumn(IsPrimaryKey = true, IsIdentity = true)]
+            public int Id { get; set; }
+
+            // 设备名 (带模组前缀，如 "1_PLC_Feeder_A")
+            public string? DeviceName { get; set; }
+
+            // 项目号
+            public string? ProjectNumber { get; set; } = "-";
+
+            // --- 核心数据 ---
+
+            // 小时产能 (计算得出的增量：本小时新增了多少)
+            public int HourlyCapacity { get; set; } = 0;
+
+            // 原始累计产能 (PLC上的 TotalCapacity读数，留底备查)
+            public int RawTotalCapacity { get; set; } = 0;
+
+            // --- 其他统计字段 (直接读取PLC) ---
+
+            public int HourlyStandbyTimeMin { get; set; } = 0;
+            public int HourlyFaultTimeMin { get; set; } = 0;
+            public int HourlyFaultCount { get; set; } = 0;
+            public int HourlySystemNG { get; set; } = 0;
+            public int HourlyMaterialLost { get; set; } = 0;
+
+            // 记录时间
+            public DateTime CreateTime { get; set; } = DateTime.Now;
+        }
+
+
     }
-
-    [SugarTable("UpDrop_Hourly_Record")]
-    public class UpDropHourlyRecord
-    {
-        [SugarColumn(IsPrimaryKey = true, IsIdentity = true)]
-        public int Id { get; set; }
-
-        // 设备名 (带模组前缀，如 "1_PLC_Feeder_A")
-        public string? DeviceName { get; set; }
-
-        // 项目号
-        public string? ProjectNumber { get; set; } = "-";
-
-        // --- 核心数据 ---
-
-        // 小时产能 (计算得出的增量：本小时新增了多少)
-        public int HourlyCapacity { get; set; } = 0;
-
-        // 原始累计产能 (PLC上的 TotalCapacity读数，留底备查)
-        public int RawTotalCapacity { get; set; } = 0;
-
-        // --- 其他统计字段 (直接读取PLC) ---
-
-        public int HourlyStandbyTimeMin { get; set; } = 0;
-        public int HourlyFaultTimeMin { get; set; } = 0;
-        public int HourlyFaultCount { get; set; } = 0;
-        public int HourlySystemNG { get; set; } = 0;
-        public int HourlyMaterialLost { get; set; } = 0;
-
-        // 记录时间
-        public DateTime CreateTime { get; set; } = DateTime.Now;
-    }
-
-
 }
