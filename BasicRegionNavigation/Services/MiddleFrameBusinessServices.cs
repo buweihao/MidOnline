@@ -35,6 +35,8 @@ namespace BasicRegionNavigation.Services
         //四、转产
          void ChangeoverMissionStart();
 
+        // 五、时间写入 (新增)
+        void TimeSyncMissionStart();
     }
     public class MiddleFrameBusinessServices : IMiddleFrameBusinessServices
     {
@@ -484,6 +486,79 @@ namespace BasicRegionNavigation.Services
         }
 
         #endregion
+
+        #region 业务五、时间写入 
+
+        /// <summary>
+        /// 启动时间同步任务监听
+        /// 逻辑：订阅 Time 触发信号 -> 触发后写入 Year/Month/Day... -> 复位触发信号
+        /// </summary>
+        public void TimeSyncMissionStart()
+        {
+            // 定义模组和设备列表
+            string[] modules = new[] { "1", "2" };
+            // 注意：这里使用的是 CSV 里的原始设备名
+            string[] devices = new[] { "PLC_Flipper", "PLC_Feeder_A", "PLC_Feeder_B" };
+
+            foreach (var module in modules)
+            {
+                foreach (var device in devices)
+                {
+                    // 1. 构造订阅的点位名
+                    // 结果示例: "1_PLC_Flipper_Time"
+                    string realDeviceId = ModbusKeyHelper.BuildDeviceId(module, device);
+                    string triggerTag = ModbusKeyHelper.Build(realDeviceId, null, "Time");
+
+                    // 2. 订阅
+                    _bus.Subscribe(triggerTag, (data) =>
+                    {
+                        // 过滤条件：通讯良好且值为 1
+                        if (data.IsQualityGood && IsTriggered(data.Value))
+                        {
+                            // 3. 异步执行写入
+                            Task.Run(() => ExecuteTimeSync(realDeviceId, triggerTag));
+                        }
+                    });
+                }
+            }
+        }
+
+        /// <summary>
+        /// 执行时间同步逻辑
+        /// </summary>
+        private void ExecuteTimeSync(string realDeviceId, string triggerTag)
+        {
+            try
+            {
+                var now = DateTime.Now;
+
+                // A. 写入7个时间寄存器
+                // 根据 CSV 配置，这些点位都是 Int16，所以强转 (short)
+                _engine.WriteTag(ModbusKeyHelper.Build(realDeviceId, null, "Year"), (short)now.Year);
+                _engine.WriteTag(ModbusKeyHelper.Build(realDeviceId, null, "Month"), (short)now.Month);
+                _engine.WriteTag(ModbusKeyHelper.Build(realDeviceId, null, "Day"), (short)now.Day);
+                _engine.WriteTag(ModbusKeyHelper.Build(realDeviceId, null, "Hour"), (short)now.Hour);
+                _engine.WriteTag(ModbusKeyHelper.Build(realDeviceId, null, "Minute"), (short)now.Minute);
+                _engine.WriteTag(ModbusKeyHelper.Build(realDeviceId, null, "Second"), (short)now.Second);
+
+                // WeekDay: C# 0(Sun)-6(Sat), 需确认PLC是否需要+1
+                // 暂时按 Modbus 常用习惯直接写入
+                _engine.WriteTag(ModbusKeyHelper.Build(realDeviceId, null, "WeekDay"), (short)now.DayOfWeek);
+
+                // B. 回写触发信号为 0
+                _engine.WriteTag(triggerTag, (short)0);
+
+                //Console.WriteLine($"[{realDeviceId}] 时间同步成功: {now}");
+            }
+            catch (Exception ex)
+            {
+                //Console.WriteLine($"[{realDeviceId}] 时间同步失败: {ex.Message}");
+            }
+        }
+
+        #endregion
+
+
     }
     public class UpLoadProxy
     {

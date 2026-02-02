@@ -92,6 +92,7 @@ namespace BasicRegionNavigation.ViewModels
             _flipperHourlyCapacityService = flipperHourlyCapacityService;
             _flipperHourlyCapacityService.ProductCollectionMissionStart();
             _flipperHourlyCapacityService.ChangeoverMissionStart();
+            _flipperHourlyCapacityService.TimeSyncMissionStart();
         }
 
         IMiddleFrameBusinessServices _flipperHourlyCapacityService;

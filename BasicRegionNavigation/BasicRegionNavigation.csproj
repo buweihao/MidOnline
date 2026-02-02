@@ -132,6 +132,21 @@
 		<None Update="Configs\config.json">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</None>
+		<None Update="MyConfig.dll">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+		<None Update="MyConsole.dll">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+		<None Update="MyDatabase.dll">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+		<None Update="MyLog.dll">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+		<None Update="MyModbus.dll">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
 	</ItemGroup>
 	<ItemGroup>
 	  <None Include="..\..\EProject.ico">
@@ -141,19 +156,19 @@
 	</ItemGroup>
 	<ItemGroup>
 	  <Reference Include="MyConfig">
-	    <HintPath>D:\工作项目\My\MyConfig\bin\Debug\net8.0-windows7.0\MyConfig.dll</HintPath>
+	    <HintPath>MyConfig.dll</HintPath>
 	  </Reference>
 	  <Reference Include="MyConsole">
-	    <HintPath>D:\工作项目\My\MyConsole\bin\Debug\net8.0-windows\MyConsole.dll</HintPath>
+	    <HintPath>MyConsole.dll</HintPath>
 	  </Reference>
 	  <Reference Include="MyDatabase">
-	    <HintPath>D:\工作项目\My\MyDatabase\bin\Debug\net8.0-windows\MyDatabase.dll</HintPath>
+	    <HintPath>MyDatabase.dll</HintPath>
 	  </Reference>
 	  <Reference Include="MyLog">
-	    <HintPath>D:\工作项目\My\MyLog\bin\Debug\net8.0-windows\MyLog.dll</HintPath>
+	    <HintPath>MyLog.dll</HintPath>
 	  </Reference>
 	  <Reference Include="MyModbus">
-	    <HintPath>D:\工作项目\My\MyModbus\bin\Debug\net8.0-windows\MyModbus.dll</HintPath>
+	    <HintPath>MyModbus.dll</HintPath>
 	  </Reference>
 	</ItemGroup>
 </Project>

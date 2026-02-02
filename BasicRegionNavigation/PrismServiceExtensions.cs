@@ -63,45 +63,45 @@ namespace BasicRegionNavigation.Helper
                 // 1. 定义克隆清单
                 var cloneList = new[]
                 {
-            (Template: "PLC_Peripheral", ModuleId: "1", Ip: "127.0.0.1"),
+            //(Template: "PLC_Peripheral", ModuleId: "1", Ip: "127.0.0.1"),
 
-            (Template: "PLC_Robot",      ModuleId: "1", Ip: "127.0.0.1"),
+            //(Template: "PLC_Robot",      ModuleId: "1", Ip: "127.0.0.1"),
 
-            (Template: "PLC_Feeder_A",   ModuleId: "1", Ip: "127.0.0.2"),
+            //(Template: "PLC_Feeder_A",   ModuleId: "1", Ip: "127.0.0.2"),
 
-            (Template: "PLC_Feeder_B",   ModuleId: "1", Ip: "127.0.0.3"),
+            //(Template: "PLC_Feeder_B",   ModuleId: "1", Ip: "127.0.0.3"),
 
-            (Template: "PLC_Flipper",    ModuleId: "1", Ip: "127.0.0.1"),
+            //(Template: "PLC_Flipper",    ModuleId: "1", Ip: "127.0.0.1"),
 
-            //(Template: "PLC_Peripheral", ModuleId: "1", Ip: "10.120.93.99"),
+            (Template: "PLC_Peripheral", ModuleId: "1", Ip: "10.120.93.99"),
 
-            //(Template: "PLC_Robot",      ModuleId: "1", Ip: "10.120.93.99"),
+            (Template: "PLC_Robot",      ModuleId: "1", Ip: "10.120.93.99"),
 
-            //(Template: "PLC_Feeder_A",   ModuleId: "1", Ip: "10.120.93.97"),
+            (Template: "PLC_Feeder_A",   ModuleId: "1", Ip: "10.120.93.97"),
 
-            //(Template: "PLC_Feeder_B",   ModuleId: "1", Ip: "10.120.93.98"),
+            (Template: "PLC_Feeder_B",   ModuleId: "1", Ip: "10.120.93.98"),
 
-            //(Template: "PLC_Flipper",    ModuleId: "1", Ip: "10.120.93.99"),
+            (Template: "PLC_Flipper",    ModuleId: "1", Ip: "10.120.93.99"),
 
-            (Template: "PLC_Peripheral", ModuleId: "2", Ip: "127.0.0.4"),
+            //(Template: "PLC_Peripheral", ModuleId: "2", Ip: "127.0.0.4"),
 
-            (Template: "PLC_Robot",      ModuleId: "2", Ip: "127.0.0.4"),
+            //(Template: "PLC_Robot",      ModuleId: "2", Ip: "127.0.0.4"),
 
-            (Template: "PLC_Feeder_A",   ModuleId: "2", Ip: "127.0.0.5"),
+            //(Template: "PLC_Feeder_A",   ModuleId: "2", Ip: "127.0.0.5"),
 
-            (Template: "PLC_Feeder_B",   ModuleId: "2", Ip: "127.0.0.6"),
+            //(Template: "PLC_Feeder_B",   ModuleId: "2", Ip: "127.0.0.6"),
 
-            (Template: "PLC_Flipper",    ModuleId: "2", Ip: "127.0.0.4"),
+            //(Template: "PLC_Flipper",    ModuleId: "2", Ip: "127.0.0.4"),
 
-            //(Template: "PLC_Peripheral", ModuleId: "1", Ip: "10.120.93.89"),
+            (Template: "PLC_Peripheral", ModuleId: "2", Ip: "10.120.93.89"),
 
-            //(Template: "PLC_Robot",      ModuleId: "1", Ip: "10.120.93.89"),
+            (Template: "PLC_Robot",      ModuleId: "2", Ip: "10.120.93.89"),
 
-            //(Template: "PLC_Feeder_A",   ModuleId: "1", Ip: "10.120.93.87"),
+            (Template: "PLC_Feeder_A",   ModuleId: "2", Ip: "10.120.93.87"),
 
-            //(Template: "PLC_Feeder_B",   ModuleId: "1", Ip: "10.120.93.88"),
+            (Template: "PLC_Feeder_B",   ModuleId: "2", Ip: "10.120.93.88"),
 
-            //(Template: "PLC_Flipper",    ModuleId: "1", Ip: "10.120.93.89"),
+            (Template: "PLC_Flipper",    ModuleId: "2", Ip: "10.120.93.89"),
         };
 
                 var templatesToRemove = new HashSet<Device>();
@@ -136,7 +136,7 @@ namespace BasicRegionNavigation.Helper
                     // 设置为 CDAB 模式 (双字反转)
                     device.ByteOrder = MyModbus.DataFormat.CDAB;
 
-                    if(device.DeviceId == "1_PLC_Flipper"|| device.DeviceId == "2_PLC_Flipper")
+                    if(false)
                     {
                         device.IsStringReverse = false;
                     }
