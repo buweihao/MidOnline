@@ -1,4 +1,5 @@
-﻿using Dm;
+﻿using BasicRegionNavigation.ViewModels;
+using Dm;
 using Microsoft.Extensions.DependencyInjection;
 using MyDatabase;
 using MyLog;
@@ -9,6 +10,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static BasicRegionNavigation.Services.UpDropHourlyService;
 
 namespace BasicRegionNavigation.Services
 {
@@ -22,14 +24,19 @@ namespace BasicRegionNavigation.Services
         private readonly IRepository<DeviceLog> _logRepo;
         private readonly IRepository<ProductionRecord> _prodRepo;
         private readonly ISqlSugarClientFactory _clientFactory;
+
+        private readonly IRepository<UpDropHourlyRecord> _hourlyRepo;
+
         public ProductionService(
             ISqlSugarClientFactory clientFactory,
             IRepository<DeviceLog> logRepo,
-            IRepository<ProductionRecord> prodRepo)
+            IRepository<ProductionRecord> prodRepo,
+            IRepository<UpDropHourlyRecord> hourlyRepo)
         {
             _clientFactory = clientFactory;
             _logRepo = logRepo;
             _prodRepo = prodRepo;
+            _hourlyRepo = hourlyRepo;
         }
 
         public MyLogOptions Configure()
@@ -44,63 +51,151 @@ namespace BasicRegionNavigation.Services
             };
         }
 
-        public async Task<Dictionary<string, Dictionary<string, int>>> GetProductStatsByModuleAndProjectAsync(DateTime startTime, DateTime endTime)
+        public async Task<PieChartDto> GetViewBPieStatsAsync(DateTime start, DateTime end, string modulePrefix)
+        {
+            var result = new PieChartDto();
+
+            try
+            {
+                // 1. 定义目标设备名称
+                string upFeederA = $"{modulePrefix}_PLC_Feeder_A";
+                string upFeederB = $"{modulePrefix}_PLC_Feeder_B";
+                string dnFeederA = $"{modulePrefix}_PLC_UnFeeder_A";
+                string dnFeederB = $"{modulePrefix}_PLC_UnFeeder_B";
+
+                // 2. 查出该时间段内所有相关的生产记录
+                // 只要是该模组的上料或下料记录，都查出来
+                var rawData = await _prodRepo.GetListAsync(x =>
+                    x.CreateTime >= start &&
+                    x.CreateTime <= end &&
+                    (
+                        x.UpLoadDeivceName == upFeederA ||
+                        x.UpLoadDeivceName == upFeederB ||
+                        x.LowerHangFlipDeivceName == dnFeederA ||
+                        x.LowerHangFlipDeivceName == dnFeederB
+                    ));
+
+                // -------------------------------------------------------------
+                // 3. 上挂饼图数据：上料机产量分布
+                // -------------------------------------------------------------
+                var upGroups = rawData
+                    .Where(x => x.UpLoadDeivceName == upFeederA || x.UpLoadDeivceName == upFeederB)
+                    .GroupBy(x => x.ProjectNumber ?? "未知项目") // <--- 修改此处
+                    .Select(g => new { Name = g.Key, Count = g.Count() })
+                    .ToList();
+
+                foreach (var item in upGroups)
+                {
+                    result.UpPieData.Add(item.Name, item.Count);
+                }
+                if (result.UpPieData.Count == 0) result.UpPieData.Add("无上料数据", 1); // 占位
+
+                // -------------------------------------------------------------
+                // 4. 下挂饼图数据：下料机产量分布
+                // -------------------------------------------------------------
+                var dnGroups = rawData
+                    .Where(x => x.LowerHangFlipDeivceName == dnFeederA || x.LowerHangFlipDeivceName == dnFeederB)
+                    .GroupBy(x => x.ProductCategory ?? "未知型号")
+                    .Select(g => new { Name = g.Key, Count = g.Count() })
+                    .ToList();
+
+                foreach (var item in dnGroups)
+                {
+                    result.DnPieData.Add(item.Name, item.Count);
+                }
+                if (result.DnPieData.Count == 0) result.DnPieData.Add("无下料数据", 1); // 占位
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[PieStats] 统计异常: {ex.Message}");
+                // 异常时返回空对象，防止 UI 崩溃
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// 获取 ViewB 生产统计数据
+        /// </summary>
+        /// <param name="modulePrefix">模组前缀，如 "1" 或 "2"</param>
+        public async Task<List<ProductInfoTable>> GetViewBProductionStatsAsync(DateTime start, DateTime end, string modulePrefix)
         {
             try
             {
-                using var db = _clientFactory.GetClient();
+                // 1. 定义标准设备名称字符串，避免在循环中重复拼接
+                // 上料机标准名
+                string targetUpFeederA = $"{modulePrefix}_PLC_Feeder_A";
+                string targetUpFeederB = $"{modulePrefix}_PLC_Feeder_B";
 
-                // 1. 数据库分组查询：同时按 [设备名] 和 [项目号] 分组
-                // 注意：这里使用你的实体字段名 UpLoadDeivceName (保留你的拼写习惯)
-                var list = await db.Queryable<ProductionRecord>()
-                    .Where(x => x.CreateTime >= startTime && x.CreateTime <= endTime)
-                    .GroupBy(x => new { x.UpLoadDeivceName, x.ProjectNumber })
-                    .Select(x => new
+                // 下料机标准名 (注意：根据你的要求，这里映射到 UnFeeder)
+                string targetDnFeederA = $"{modulePrefix}_PLC_UnFeeder_A";
+                string targetDnFeederB = $"{modulePrefix}_PLC_UnFeeder_B";
+
+                // 2. 数据库查询：获取时间范围内，该模组相关的所有记录
+                // 只要该记录的 上料设备、上翻转设备、或下翻转设备 名字以模组号开头，都算该模组的数据
+                var rawList = await _prodRepo.GetListAsync(x =>
+                    x.CreateTime >= start &&
+                    x.CreateTime <= end &&
+                    (
+                        (x.UpLoadDeivceName != null && x.UpLoadDeivceName.StartsWith(modulePrefix)) ||
+                        (x.UpperHangFlipDeivceName != null && x.UpperHangFlipDeivceName.StartsWith(modulePrefix)) ||
+                        (x.LowerHangFlipDeivceName != null && x.LowerHangFlipDeivceName.StartsWith(modulePrefix))
+                    )
+                );
+
+                // 3. 内存分组统计
+                var result = rawList
+                    .GroupBy(x => x.ProjectNumber ?? "未知项目")
+                    .Select(g => new ProductInfoTable
                     {
-                        DeviceName = x.UpLoadDeivceName,
-                        Project = x.ProjectNumber,
-                        Count = SqlFunc.AggregateCount(x.Id)
+                        ProjectId = g.Key,
+
+                        // 基础信息 (取第一条非空值)
+                        MaterialType = g.Select(x => x.ProductCategory).FirstOrDefault(s => !string.IsNullOrEmpty(s)) ?? "-",
+                        AnodeType = "-", // 数据库若无此字段则给默认值
+
+                        // --- 上料统计 (根据 DeviceName 精确匹配) ---
+
+                        // 上料机A: UpLoadDeivceName == "1_PLC_Feeder_A"
+                        UpFeeder1 = g.Count(x => x.UpLoadDeivceName == targetUpFeederA),
+
+                        // 上料机B: UpLoadDeivceName == "1_PLC_Feeder_B"
+                        UpFeeder2 = g.Count(x => x.UpLoadDeivceName == targetUpFeederB),
+
+                        // --- 上翻转台统计 (根据 Time 是否存在) ---
+                        // 逻辑：只要有 UpperHangFlip_Time，且设备名属于当前模组，就算过站
+                        UpTurnTable = g.Count(x => x.UpperHangFlip_Time != null &&
+                                                   (x.UpperHangFlipDeivceName != null && x.UpperHangFlipDeivceName.StartsWith(modulePrefix))),
+
+                        // --- 下料统计 (字段映射: LowerHangFlipDeivceName -> UnFeeder) ---
+
+                        // 下料机A: LowerHangFlipDeivceName == "1_PLC_UnFeeder_A"
+                        DnFeeder1 = g.Count(x => x.LowerHangFlipDeivceName == targetDnFeederA),
+
+                        // 下料机B: LowerHangFlipDeivceName == "1_PLC_UnFeeder_B"
+                        DnFeeder2 = g.Count(x => x.LowerHangFlipDeivceName == targetDnFeederB),
+
+                        // --- 下翻转台统计 (根据 Time 是否存在) ---
+                        // 逻辑：只要有 LowerHangFlip_Time，就算完成了下翻转动作
+                        DnTurnTable = g.Count(x => x.LowerHangFlip_Time != null &&
+                                                   (x.LowerHangFlipDeivceName != null && x.LowerHangFlipDeivceName.StartsWith(modulePrefix)))
                     })
-                    .ToListAsync();
+                    .ToList();
 
-                // 2. 在内存中重组数据结构
-                var result = new Dictionary<string, Dictionary<string, int>>();
-
-                foreach (var item in list)
+                // 4. 计算合计
+                foreach (var item in result)
                 {
-                    // --- A. 解析模组ID ---
-                    // 假设 DeviceName 格式为 "2_PLC_Feeder_A" -> 模组ID 为 "2"
-                    string moduleId = "1"; // 默认值，防止空数据
-                    if (!string.IsNullOrEmpty(item.DeviceName))
-                    {
-                        var parts = item.DeviceName.Split('_');
-                        if (parts.Length > 0)
-                        {
-                            moduleId = parts[0];
-                        }
-                    }
-
-                    // --- B. 初始化该模组的字典 ---
-                    if (!result.ContainsKey(moduleId))
-                    {
-                        result[moduleId] = new Dictionary<string, int>();
-                    }
-
-                    // --- C. 填充项目数据 ---
-                    string projectKey = string.IsNullOrEmpty(item.Project) ? "未知项目" : item.Project;
-
-                    if (result[moduleId].ContainsKey(projectKey))
-                        result[moduleId][projectKey] += item.Count;
-                    else
-                        result[moduleId][projectKey] = item.Count;
+                    item.UpTotalFeederOutput = item.UpFeeder1 + item.UpFeeder2;
+                    item.DnTotalFeederOutput = item.DnFeeder1 + item.DnFeeder2;
                 }
 
                 return result;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[统计查询异常] {ex.Message}");
-                return new Dictionary<string, Dictionary<string, int>>();
+                Console.WriteLine($"[ProductionService] 统计异常: {ex.Message}");
+                return new List<ProductInfoTable>();
             }
         }
         public async Task ProcessProductDataAsync(StationProcessContext context)
@@ -211,6 +306,9 @@ namespace BasicRegionNavigation.Services
                             string? projNum = context.PlcData.TryGetValue("ProjectNumber", out var pVal) ? pVal?.ToString() : null;
                             string? category = context.PlcData.TryGetValue("ProductCategory", out var cVal) ? cVal?.ToString() : null;
 
+                            // [新增] 提取颜色信息
+                            string? color = context.PlcData.TryGetValue("ProductColor", out var colorVal) ? colorVal?.ToString() : null;
+
                             // 3. 遍历每一个产品码进行更新
                             foreach (var code in productCodes)
                             {
@@ -229,16 +327,20 @@ namespace BasicRegionNavigation.Services
                                     if (projNum != null) item.ProjectNumber = projNum;
                                     if (category != null) item.ProductCategory = category;
 
+                                    // [新增] 更新数据库实体的颜色字段
+                                    // 请确保你的数据库实体类 (item) 中已经包含了 ProductColor 属性
+                                    if (color != null) item.ProductColor = color;
+
                                     await _prodRepo.UpdateAsync(item);
 
-                                    // Logger: 记录详细变更
-                                    Console.WriteLine($"[翻转-绑定] SN: {currentSn} | 挂具: {fixture} | 项目: {projNum}");
+                                    // Logger: 记录详细变更 (增加颜色日志)
+                                    Console.WriteLine($"[翻转-绑定] SN: {currentSn} | 挂具: {fixture} | 项目: {projNum} | 颜色: {color}");
 
                                     // LogRepo: 数据库留痕 (业务流转节点)
                                     await _logRepo.InsertAsync(new DeviceLog
                                     {
                                         Module = context.DeviceId,
-                                        Message = $"翻转台流转: {currentSn}",
+                                        Message = $"翻转台流转: {currentSn}, 颜色: {color}", // [可选] 在Log表中也记录一下颜色
                                         CreateTime = DateTime.Now
                                     });
                                 }
@@ -326,24 +428,27 @@ namespace BasicRegionNavigation.Services
             var sortedList = list.OrderByDescending(x => x.CreateTime).ToList();
             return new ObservableCollection<ProductionRecord>(sortedList);
         }
+        public async Task<Dictionary<string, Dictionary<string, int>>> GetProductStatsByModuleAndProjectAsync(DateTime startTime, DateTime endTime)
+        {
+            return new Dictionary<string, Dictionary<string, int>>(); // 占位实现
+        }
     }
     [SugarTable("Production_Records")]
     public class ProductionRecord
     {
-        [SugarColumn(IsPrimaryKey = true, IsIdentity = true)] // 这里的类型要跟你的数据库匹配，推荐用 int
+        [SugarColumn(IsPrimaryKey = true, IsIdentity = true)]
         public int Id { get; set; }
 
         // --- 工序 1 (上料机A/B) ---
         public string? ProductCode { get; set; }
 
-        [SugarColumn(IsNullable = true)] // <--- 允许为空
+        [SugarColumn(IsNullable = true)]
         public string? UpLoadDeivceName { get; set; }
 
-        [SugarColumn(IsNullable = true)] // <--- 允许为空
+        [SugarColumn(IsNullable = true)]
         public DateTime? UpLoad_Time { get; set; }
 
         // --- 工序 2 (上翻转台) ---
-        // 这些字段在第一步 Insert 时肯定没有值，必须设为 IsNullable = true
         [SugarColumn(IsNullable = true)]
         public string? FixtureCode { get; set; }
 
@@ -352,6 +457,11 @@ namespace BasicRegionNavigation.Services
 
         [SugarColumn(IsNullable = true)]
         public string? ProductCategory { get; set; }
+
+        // [新增] 产品颜色字段
+        // 必须允许为空，因为上料时还没读取到颜色
+        [SugarColumn(IsNullable = true)]
+        public string? ProductColor { get; set; }
 
         [SugarColumn(IsNullable = true)]
         public string? UpperHangFlipDeivceName { get; set; }
@@ -374,6 +484,8 @@ namespace BasicRegionNavigation.Services
 
         public bool IsCompleted { get; set; }
     }
+
+
     // 设备日志表
     [SugarTable("Device_Logs")]
     public class DeviceLog
@@ -384,14 +496,17 @@ namespace BasicRegionNavigation.Services
         public string Message { get; set; }
         public DateTime CreateTime { get; set; }
     }
-    public interface IProductionService: IMyLogConfig
+    public interface IProductionService : IMyLogConfig
     {
         Task ProcessProductDataAsync(StationProcessContext context);
         Task<ObservableCollection<ProductionRecord>> GetProductionRecordsAsync(
         DateTime? startTime = null,
         DateTime? endTime = null,
         Dictionary<string, object>? filters = null);
+        Task<List<ProductInfoTable>> GetViewBProductionStatsAsync(DateTime start, DateTime end, string modulePrefix);
         Task<Dictionary<string, Dictionary<string, int>>> GetProductStatsByModuleAndProjectAsync(DateTime startTime, DateTime endTime);
+
+        Task<PieChartDto> GetViewBPieStatsAsync(DateTime start, DateTime end, string modulePrefix);
     }
     // 1. 定义工序类型（明确告诉程序当前是哪一步）
     public enum StationProcessType
@@ -452,5 +567,11 @@ namespace BasicRegionNavigation.Services
                 PlcData = data
             };
         }
+    }
+    // 定义传输对象
+    public class PieChartDto
+    {
+        public Dictionary<string, int> UpPieData { get; set; } = new(); // 设备状态分布 (时间/分钟)
+        public Dictionary<string, int> DnPieData { get; set; } = new(); // 产品产量分布 (数量/个)
     }
 }

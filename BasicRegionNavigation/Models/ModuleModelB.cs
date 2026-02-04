@@ -156,40 +156,46 @@ namespace BasicRegionNavigation.Models
 
         public void UpdateValue(ModuleDataCategory category, object data)
         {
-            if (category == ModuleDataCategory.FaultStatsAxis)
+            // 如果是故障统计相关的更新
+            if (category == ModuleDataCategory.FaultStatsSeries)
             {
-                // 更新 X 轴标签
-                if (data is string[] labels && XAxes.Length > 0)
+                // 1. 解析三元组数据 (Tuple<Labels, FailureTime, FailureCount>)
+                // Item1: string[] (设备名称/X轴标签)
+                // Item2: double[] (故障时间)
+                // Item3: double[] (故障次数)
+                if (data is Tuple<string[], double[], double[]> tupleData)
                 {
-                    XAxes[0].Labels = labels;
-                }
-                return;
-            }
+                    var labels = tupleData.Item1;
+                    var timeValues = tupleData.Item2;
+                    var countValues = tupleData.Item3;
 
-            // 更新 Series 数据
-            // 假设传入的是两个数组：double[] 故障时间, double[] 故障次数
-            if (data is Tuple<double[], double[]> tupleData)
-            {
-                var timeValues = tupleData.Item1;
-                var countValues = tupleData.Item2;
-
-                Series = new ISeries[]
-                {
-                    new ColumnSeries<double>
+                    // 2. 更新 X 轴标签
+                    // LiveCharts2 的 Axis 是响应式的，直接赋值即可
+                    if (XAxes != null && XAxes.Length > 0)
                     {
-                        Name = "故障时间",
-                        Values = timeValues,
-                        Fill = new SolidColorPaint(SKColors.Red),
-                        ScalesYAt = 0 // 对应左轴
-                    },
-                    new ColumnSeries<double>
-                    {
-                        Name = "故障次数",
-                        Values = countValues,
-                        Fill = new SolidColorPaint(SKColors.Aqua),
-                        ScalesYAt = 1 // 对应右轴
+                        XAxes[0].Labels = labels;
                     }
-                };
+
+                    // 3. 更新 Series 数据
+                    // 直接重新创建 Series 集合是最简单的全量刷新方式
+                    Series = new ISeries[]
+                    {
+                new ColumnSeries<double>
+                {
+                    Name = "故障时间",
+                    Values = timeValues,
+                    Fill = new SolidColorPaint(SKColors.Red),
+                    ScalesYAt = 0 // 对应左侧 Y 轴
+                },
+                new ColumnSeries<double>
+                {
+                    Name = "故障次数",
+                    Values = countValues,
+                    Fill = new SolidColorPaint(SKColors.Aqua),
+                    ScalesYAt = 1 // 对应右侧 Y 轴
+                }
+                    };
+                }
             }
         }
     }

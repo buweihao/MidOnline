@@ -229,7 +229,7 @@ namespace BasicRegionNavigation.Services
                 var projectNo = flipper.ProductProjectNo;
                 var category = flipper.ProductCategory;
                 var productCodes = flipper.CurrentProductCodes; // 获取列表
-
+                var color = flipper.ProductColor;
                 // 4. 遍历所有产品码，逐个生成生产数据
                 // (翻转台一次可能翻转多个产品，CSV中长度168也暗示了这一点)
                 foreach (var sn in productCodes)
@@ -242,6 +242,7 @@ namespace BasicRegionNavigation.Services
                         { "FixtureCode", fixture },
                         { "ProjectNumber", projectNo },
                         { "ProductCategory", category },
+                        { "ProductColor", color }, // [新增] 将颜色加入字典
                         { "Side", flipper.IsSideA ? "A" : "B" } // 记录是哪一面
                     };
 
@@ -712,6 +713,7 @@ namespace BasicRegionNavigation.Services
         // 这里映射到 ProductType，如需 MaterialCategory 请修改后缀
         public string ProductCategory => _bus.GetValue($"{_prefix}_MaterialCategory")?.ToString() ?? string.Empty;
 
+        public string ProductColor => _bus.GetValue($"{_prefix}_ProductColor")?.ToString() ?? string.Empty;
         // 辅助属性：获取当前是 A 面还是 B 面
         public bool IsSideA => _prefix.EndsWith("A");
     }

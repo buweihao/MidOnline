@@ -34,17 +34,185 @@ namespace BasicRegionNavigation.ViewModels
         private readonly ConcurrentDictionary<string, ModuleModelB> _modulesCache = new ConcurrentDictionary<string, ModuleModelB>();
         [ObservableProperty]
         private ModuleModelB _currentModule;
-        public ViewBViewModel(IConfigService configService)
+
+        // 1. 注入两个服务
+        private readonly IFlipperHourlyService _flipperService;
+        private readonly IProductionService _productionService;
+        private readonly IUpDropHourlyService _upDropService;     // [必须] 用于供料机效能
+
+
+        public ViewBViewModel(
+                    IConfigService configService,
+                    IProductionService productionService,   // 注入
+                    IFlipperHourlyService flipperService,
+                    IUpDropHourlyService upDropService) // 注入
         {
             _configService = configService;
-
+            _upDropService = upDropService; // 赋值
+            _productionService = productionService;
+            _flipperService = flipperService;
             InitializeModules(new[] { "1", "2" });
             OnModulesChanged(2);
 
-            StartPieInfoSimulation();
-            StartProductInfoBSimulation();
-            StartEfficiencyAndFaultSimulation();
+            //StartPieInfoSimulation();
+            //StartProductInfoBSimulation();
+            //StartEfficiencyAndFaultSimulation();
+            // [修改] 移除旧的模拟启动，改为定时真实查询
+            //StartRealDataPolling();
+            _upDropService = upDropService;
         }
+
+        // [核心逻辑] 真实数据轮询
+        private void StartRealDataPolling()
+        {
+            Task.Run(async () =>
+            {
+                while (true)
+                {
+                    try
+                    {
+                        var currentModuleId = _modelNum;
+                        var start = DateTime.Today; // 统计当天的
+                        var end = DateTime.Now;
+
+                        // ---------------------------------------------------
+                        // A. 获取表格 & 柱状图数据 (列表/效能)
+                        // ---------------------------------------------------
+                        var productStatsTask = _productionService.GetViewBProductionStatsAsync(start, end, currentModuleId);
+                        var flipperStatsTask = _flipperService.GetFlipperStatsAsync(start, end, currentModuleId);
+                        var feederStatsTask = _upDropService.GetFeederStatsAsync(start, end, currentModuleId);
+
+                        // ---------------------------------------------------
+                        // B. [新增] 获取饼图数据
+                        // ---------------------------------------------------
+                        var pieStatsTask = _productionService.GetViewBPieStatsAsync(start, end, currentModuleId);
+
+                        // 并行等待所有任务
+                        await Task.WhenAll(productStatsTask, flipperStatsTask, feederStatsTask, pieStatsTask);
+
+                        // 获取结果
+                        var productStats = productStatsTask.Result;
+                        var flipperEff = flipperStatsTask.Result.Efficiencies;
+                        var feederEff = feederStatsTask.Result.Efficiencies;
+                        var pieStats = pieStatsTask.Result; // 饼图结果
+
+                        // 合并效能列表 (供表格和柱状图使用)
+                        var allEfficiencyStats = new List<ProductionEfficiencyTable>();
+                        allEfficiencyStats.AddRange(feederEff);
+                        allEfficiencyStats.AddRange(flipperEff);
+                        allEfficiencyStats = allEfficiencyStats.OrderBy(x => x.DeviceName).ToList();
+
+                        // ---------------------------------------------------
+                        // C. 更新 UI
+                        // ---------------------------------------------------
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            // 1. 更新表格
+                            HandleDataChanged(currentModuleId, ModuleDataCategory.ProductInfoTop, productStats);
+                            HandleDataChanged(currentModuleId, ModuleDataCategory.ProductInfoBottom, productStats);
+                            HandleDataChanged(currentModuleId, ModuleDataCategory.EfficiencyData, allEfficiencyStats);
+
+                            // 2. 更新柱状图
+                            UpdateFaultChart(currentModuleId, allEfficiencyStats);
+
+                            // 3. [新增] 更新饼图
+                            // 上挂饼图 (设备状态)
+                            HandleDataChanged(currentModuleId, ModuleDataCategory.UpPieInfo, pieStats.UpPieData);
+
+                            // 下挂饼图 (产品分布)
+                            HandleDataChanged(currentModuleId, ModuleDataCategory.DnPieInfo, pieStats.DnPieData);
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"ViewB 数据刷新失败: {ex.Message}");
+                    }
+
+                    // 5秒刷新一次
+                    await Task.Delay(5000);
+                }
+            });
+        }        /// <summary>
+                 /// 合并逻辑：将供料机数据和翻转台数据按【项目号】合并到一行
+                 /// </summary>
+        private List<ProductInfoTable> MergeProductInfos(List<ProductInfoTable> feeders, List<ProductInfoTable> flippers)
+        {
+            // 1. 找出所有唯一的项目号
+            var allProjectIds = feeders.Select(x => x.ProjectId)
+                .Union(flippers.Select(x => x.ProjectId))
+                .Distinct()
+                .Where(id => id != "-") // 过滤无效项目
+                .ToList();
+
+            var result = new List<ProductInfoTable>();
+
+            foreach (var pid in allProjectIds)
+            {
+                // 尝试找两边的数据
+                var f = feeders.FirstOrDefault(x => x.ProjectId == pid);
+                var t = flippers.FirstOrDefault(x => x.ProjectId == pid);
+
+                result.Add(new ProductInfoTable
+                {
+                    ProjectId = pid,
+                    // 优先从翻转台获取类型信息 (因为翻转台数据里有 MaterialCategory)
+                    MaterialType = t?.MaterialType ?? "-",
+                    AnodeType = t?.AnodeType ?? "-",
+
+                    // 供料机数据
+                    UpFeeder1 = f?.UpFeeder1 ?? 0,
+                    UpFeeder2 = f?.UpFeeder2 ?? 0,
+                    UpTotalFeederOutput = (f?.UpFeeder1 ?? 0) + (f?.UpFeeder2 ?? 0),
+
+                    // 翻转台数据
+                    UpTurnTable = t?.UpTurnTable ?? 0,
+
+                    // 下料数据
+                    DnFeeder1 = f?.DnFeeder1 ?? 0,
+                    DnFeeder2 = f?.DnFeeder2 ?? 0,
+                    DnTotalFeederOutput = (f?.DnFeeder1 ?? 0) + (f?.DnFeeder2 ?? 0),
+                    DnTurnTable = t?.DnTurnTable ?? 0
+                });
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// 合并逻辑：直接拼接两个列表
+        /// </summary>
+        private List<ProductionEfficiencyTable> MergeEfficiencies(List<ProductionEfficiencyTable> list1, List<ProductionEfficiencyTable> list2)
+        {
+            var list = new List<ProductionEfficiencyTable>();
+            list.AddRange(list1);
+            list.AddRange(list2);
+            // 可以在这里按 DeviceName 排序
+            return list.OrderBy(x => x.DeviceName).ToList();
+        }
+
+
+        private void UpdateFaultChart(string moduleId, List<ProductionEfficiencyTable> data)
+        {
+            if (data == null || data.Count == 0) return;
+
+            // 1. 提取 X轴标签 (设备名称)
+            var deviceNames = data.Select(x => x.DeviceName ?? "-").ToArray();
+
+            // 2. 提取 Y轴数据 (故障时间 & 故障次数)
+            var times = data.Select(x => (double)x.FailureTime).ToArray();
+            var counts = data.Select(x => (double)x.FailureCount).ToArray();
+
+            // 3. 打包数据 (Labels, Values1, Values2)
+            // 使用 Tuple<string[], double[], double[]> 传递
+            var chartData = new Tuple<string[], double[], double[]>(deviceNames, times, counts);
+
+            // 4. 发送通知
+            HandleDataChanged(moduleId, ModuleDataCategory.FaultStatsSeries, chartData);
+        }
+
+
+
+
         private void InitializeModules(string[] ids)
         {
             foreach (var id in ids)
@@ -98,7 +266,7 @@ namespace BasicRegionNavigation.ViewModels
         #region Filters
 
         [ObservableProperty] private string _modelNum = "1";
-        [ObservableProperty] private DateTime _start;
+        [ObservableProperty] private DateTime _start = DateTime.Now.AddDays(-1);
         [ObservableProperty] private DateTime _end = DateTime.Now;
         [ObservableProperty] private List<string> _modeSelectGroup = new List<string> { "1", "2", "3" };
 
@@ -110,7 +278,7 @@ namespace BasicRegionNavigation.ViewModels
         {
             ModeSelectGroup = Enumerable
                 .Range(1, value)
-                .Select(i => $"模组{i}")
+                .Select(i => $"{i}")
                 .ToList();
         }
 
@@ -160,8 +328,88 @@ namespace BasicRegionNavigation.ViewModels
         [RelayCommand]
         private async Task QueryAsync()
         {
-        }
+            try
+            {
+                // 0.以此来显示加载动画 (如果有)
+                 Global.LoadingManager.StartLoading(); 
 
+                // 1. 获取界面上选择的参数
+                // 注意：这里不再是写死的 DateTime.Today，而是绑定到界面日期选择器的 Start/End
+                var currentModuleId = _modelNum;
+                var start = Start;
+                var end = End;
+
+                // ---------------------------------------------------
+                // A. 并行获取所有数据
+                // ---------------------------------------------------
+
+                // 1. 产品生产信息 (ProductionService - 统计产量)
+                var productStatsTask = _productionService.GetViewBProductionStatsAsync(start, end, currentModuleId);
+
+                // 2. 翻转台效能 (FlipperHourlyService)
+                var flipperStatsTask = _flipperService.GetFlipperStatsAsync(start, end, currentModuleId);
+
+                // 3. 供料机效能 (UpDropHourlyService)
+                var feederStatsTask = _upDropService.GetFeederStatsAsync(start, end, currentModuleId);
+
+                // 4. 饼图数据 (ProductionService - 统计分布)
+                var pieStatsTask = _productionService.GetViewBPieStatsAsync(start, end, currentModuleId);
+
+                // 等待所有任务完成
+                await Task.WhenAll(productStatsTask, flipperStatsTask, feederStatsTask, pieStatsTask);
+
+                // ---------------------------------------------------
+                // B. 数据处理与合并
+                // ---------------------------------------------------
+                var productStats = productStatsTask.Result;
+                var flipperEff = flipperStatsTask.Result.Efficiencies;
+                var feederEff = feederStatsTask.Result.Efficiencies;
+                var pieStats = pieStatsTask.Result;
+
+                // 合并效能列表 (供料机 + 翻转台)
+                var allEfficiencyStats = new List<ProductionEfficiencyTable>();
+                allEfficiencyStats.AddRange(feederEff);
+                allEfficiencyStats.AddRange(flipperEff);
+                // 按设备名排序，保证图表美观
+                allEfficiencyStats = allEfficiencyStats.OrderBy(x => x.DeviceName).ToList();
+
+                // ---------------------------------------------------
+                // C. 更新 UI (必须在 UI 线程)
+                // ---------------------------------------------------
+                // 注意：CommunityToolkit.Mvvm 的 RelayCommand 默认是在 UI 线程触发的，
+                // 但 Task.WhenAll 之后的上下文可能会变，为了保险起见，或者如果是在非 UI 线程回调中，
+                // 建议使用 Application.Current.Dispatcher。
+                // 如果你的 QueryAsync 直接绑定在按钮上，通常可以直接操作 ObservableCollection，
+                // 但为了安全，保留 Dispatcher 也没错。
+
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    // 1. 更新表格: 产品生产信息 (上表 & 下表)
+                    HandleDataChanged(currentModuleId, ModuleDataCategory.ProductInfoTop, productStats);
+                    HandleDataChanged(currentModuleId, ModuleDataCategory.ProductInfoBottom, productStats);
+
+                    // 2. 更新表格: 设备效能
+                    HandleDataChanged(currentModuleId, ModuleDataCategory.EfficiencyData, allEfficiencyStats);
+
+                    // 3. 更新图表: 故障统计
+                    UpdateFaultChart(currentModuleId, allEfficiencyStats);
+
+                    // 4. 更新饼图
+                    HandleDataChanged(currentModuleId, ModuleDataCategory.UpPieInfo, pieStats.UpPieData);
+                    HandleDataChanged(currentModuleId, ModuleDataCategory.DnPieInfo, pieStats.DnPieData);
+                });
+            }
+            catch (Exception ex)
+            {
+                // 错误处理
+                // MessageBox.Show($"查询失败: {ex.Message}");
+                Console.WriteLine($"[ViewB] Query Error: {ex.Message}");
+            }
+            finally
+            {
+                 Global.LoadingManager.StopLoading();
+            }
+        }
 
 
         [ObservableProperty]

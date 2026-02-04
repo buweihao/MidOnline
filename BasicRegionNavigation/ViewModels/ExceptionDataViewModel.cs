@@ -72,18 +72,7 @@ namespace BasicRegionNavigation.ViewModels
         [ObservableProperty]
         private ObservableCollection<AbnormalItem> _abnormalList = new()
         {
-            new AbnormalItem { DeviceName="上挂机器人-01", Mix="是", ScanNg="否", SystemFeedback="通信超时", MaterialLost="是" },
-            new AbnormalItem { DeviceName="上挂机器人-04", Mix="是", ScanNg="否", SystemFeedback="通信超时", MaterialLost="是" },
-            new AbnormalItem { DeviceName="上挂机器人-05", Mix="是", ScanNg="否", SystemFeedback="通信超时", MaterialLost="是" },
-            new AbnormalItem { DeviceName="上挂机器人-06", Mix="是", ScanNg="否", SystemFeedback="通信超时", MaterialLost="否" },
-            new AbnormalItem { DeviceName="上挂机器人-07", Mix="是", ScanNg="否", SystemFeedback="通信超时", MaterialLost="否" },
-            new AbnormalItem { DeviceName="上挂机器人-03", Mix="是", ScanNg="否", SystemFeedback="通信超时", MaterialLost="是" },
-            new AbnormalItem { DeviceName="上挂机器人-08", Mix="否", ScanNg="是", SystemFeedback="设备故障", MaterialLost="是" },
-            new AbnormalItem { DeviceName="上挂机器人-09", Mix="是", ScanNg="否", SystemFeedback="通信超时", MaterialLost="是" },
-            new AbnormalItem { DeviceName="上挂机器人-10", Mix="否", ScanNg="否", SystemFeedback="通信正常", MaterialLost="否" },
-            new AbnormalItem { DeviceName="上挂机器人-11", Mix="是", ScanNg="是", SystemFeedback="系统异常", MaterialLost="是" },
-            new AbnormalItem { DeviceName="上挂机器人-12", Mix="否", ScanNg="否", SystemFeedback="通信超时", MaterialLost="否" },
-            new AbnormalItem { DeviceName="上挂机器人-13", Mix="是", ScanNg="否", SystemFeedback="通信超时", MaterialLost="是" },
+            new AbnormalItem { DeviceName="上料机A", Mix="是", ScanNg="否", SystemFeedback="通信超时", MaterialLost="是" },
         };
 
         [ObservableProperty]

@@ -1,4 +1,5 @@
-﻿using MyDatabase;
+﻿using BasicRegionNavigation.ViewModels;
+using MyDatabase;
 using SqlSugar;
 using System;
 using System.Collections.Concurrent;
@@ -13,6 +14,7 @@ namespace BasicRegionNavigation.Services
     public interface IFlipperHourlyService
     {
         Task ProcessFlipperHourlyDataAsync(string deviceName, Dictionary<string, object> data);
+        Task<ModuleStatsDto> GetFlipperStatsAsync(DateTime start, DateTime end, string modulePrefix);
     }
 
     public class FlipperHourlyService : IFlipperHourlyService
@@ -27,7 +29,48 @@ namespace BasicRegionNavigation.Services
         {
             _repo = repo;
         }
+        public async Task<ModuleStatsDto> GetFlipperStatsAsync(DateTime start, DateTime end, string modulePrefix)
+        {
+            var rawData = await _repo.GetListAsync(x =>
+                x.CreateTime >= start &&
+                x.CreateTime <= end &&
+                x.DeviceName.StartsWith(modulePrefix));
 
+            var result = new ModuleStatsDto();
+
+            // 1. 聚合生产信息 (按项目号)
+            result.ProductInfos = rawData
+                .GroupBy(x => x.ProjectNumber)
+                .Select(g => new ProductInfoTable
+                {
+                    ProjectId = g.Key ?? "-",
+                    // 从翻转台记录中获取类别信息 (取第一条非空的)
+                    MaterialType = g.Select(x => x.MaterialCategory).FirstOrDefault(s => !string.IsNullOrEmpty(s)) ?? "-",
+                    AnodeType = g.Select(x => x.AnodeType).FirstOrDefault(s => !string.IsNullOrEmpty(s)) ?? "-",
+
+                    // 上翻转台产能 (假设设备名包含 Up 或 Flipper_A)
+                    UpTurnTable = g.Where(x => x.DeviceName.Contains("Flipper") && !x.DeviceName.Contains("Down")).Sum(x => x.HourlyCapacity),
+
+                    // 下翻转台产能 (假设设备名包含 Down)
+                    DnTurnTable = g.Where(x => x.DeviceName.Contains("Down")).Sum(x => x.HourlyCapacity)
+                }).ToList();
+
+            // 2. 聚合效能信息
+            result.Efficiencies = rawData
+                .GroupBy(x => x.DeviceName)
+                .Select(g => new ProductionEfficiencyTable
+                {
+                    DeviceName = g.Key,
+                    ScanNG = g.Sum(x => x.HourlyScanNGQty),
+                    SystemNG = g.Sum(x => x.HourlySysFeedbackQty),
+                    FailureCount = g.Sum(x => x.HourlyFaultCount),
+                    FailureTime = g.Sum(x => x.HourlyFaultTimeMin),
+                    IdleTime = g.Sum(x => x.HourlyStandbyTimeMin),
+                    UtilizationRate = "99.2%" // 需替换为真实算法
+                }).ToList();
+
+            return result;
+        }
         public async Task ProcessFlipperHourlyDataAsync(string deviceName, Dictionary<string, object> data)
         {
             if (data == null || data.Count == 0) return;
