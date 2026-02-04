@@ -51,7 +51,7 @@ namespace BasicRegionNavigation.ViewModels
             _upDropService = upDropService; // 赋值
             _productionService = productionService;
             _flipperService = flipperService;
-            InitializeModules(new[] { "1", "2" });
+            InitializeModules(SystemConfig.Modules);
             OnModulesChanged(2);
 
             //StartPieInfoSimulation();

@@ -3,6 +3,7 @@ using Dm;
 using Microsoft.Extensions.DependencyInjection;
 using MyDatabase;
 using MyLog;
+using MyModbus;
 using SqlSugar;
 using System;
 using System.Collections.Generic;
@@ -57,30 +58,45 @@ namespace BasicRegionNavigation.Services
 
             try
             {
-                // 1. 定义目标设备名称
-                string upFeederA = $"{modulePrefix}_PLC_Feeder_A";
-                string upFeederB = $"{modulePrefix}_PLC_Feeder_B";
-                string dnFeederA = $"{modulePrefix}_PLC_UnFeeder_A";
-                string dnFeederB = $"{modulePrefix}_PLC_UnFeeder_B";
+                // =========================================================================
+                // 1. 动态生成目标设备ID列表
+                // =========================================================================
+                // 不再手动定义 string upFeederA = ..., 而是根据 Config 动态生成
+                // 逻辑：遍历配置中启用的设备名，加上当前的模组前缀 (例如 "1")
 
-                // 2. 查出该时间段内所有相关的生产记录
-                // 只要是该模组的上料或下料记录，都查出来
+                // 生成所有启用的 [上料] 设备ID列表 (如: ["1_PLC_Feeder_A", "1_PLC_Feeder_B"])
+                var targetUpDevices = SystemConfig.ActiveUpLoaders
+                    .Select(template => ModbusKeyHelper.BuildDeviceId(modulePrefix, template))
+                    .ToList();
+
+                // 生成所有启用的 [下料] 设备ID列表 (如: ["1_PLC_DnFeeder_A"])
+                var targetDnDevices = SystemConfig.ActiveDownLoaders
+                    .Select(template => ModbusKeyHelper.BuildDeviceId(modulePrefix, template))
+                    .ToList();
+
+                // =========================================================================
+                // 2. 数据库查询
+                // =========================================================================
+                // 使用 .Contains() 替代原来的 == A || == B
+                // SqlSugar/EF Core 会将其自动翻译为 SQL 的 IN ('...', '...') 语法
+
                 var rawData = await _prodRepo.GetListAsync(x =>
                     x.CreateTime >= start &&
                     x.CreateTime <= end &&
                     (
-                        x.UpLoadDeivceName == upFeederA ||
-                        x.UpLoadDeivceName == upFeederB ||
-                        x.LowerHangFlipDeivceName == dnFeederA ||
-                        x.LowerHangFlipDeivceName == dnFeederB
+                        // 查询条件：上料设备在列表中 OR 下料设备在列表中
+                        // 注意：如果列表为空 (例如无下料项目)，Contains 会自动返回 false，逻辑依然成立
+                        targetUpDevices.Contains(x.UpLoadDeivceName) ||
+                        targetDnDevices.Contains(x.LowerHangFlipDeivceName)
                     ));
 
-                // -------------------------------------------------------------
+                // =========================================================================
                 // 3. 上挂饼图数据：上料机产量分布
-                // -------------------------------------------------------------
+                // =========================================================================
+                // 过滤条件同样使用 List.Contains
                 var upGroups = rawData
-                    .Where(x => x.UpLoadDeivceName == upFeederA || x.UpLoadDeivceName == upFeederB)
-                    .GroupBy(x => x.ProjectNumber ?? "未知项目") // <--- 修改此处
+                    .Where(x => targetUpDevices.Contains(x.UpLoadDeivceName))
+                    .GroupBy(x => x.ProjectNumber ?? "未知项目")
                     .Select(g => new { Name = g.Key, Count = g.Count() })
                     .ToList();
 
@@ -88,14 +104,20 @@ namespace BasicRegionNavigation.Services
                 {
                     result.UpPieData.Add(item.Name, item.Count);
                 }
-                if (result.UpPieData.Count == 0) result.UpPieData.Add("无上料数据", 1); // 占位
 
-                // -------------------------------------------------------------
+                // 只有当实际上开启了上料业务，且没查到数据时，才显示无数据占位
+                // 如果 ActiveUpLoaders 为空(说明是纯下料项目)，则不需要显示"无上料数据"的占位(或者根据UI需求决定)
+                if (result.UpPieData.Count == 0 && targetUpDevices.Any())
+                {
+                    result.UpPieData.Add("无上料数据", 1);
+                }
+
+                // =========================================================================
                 // 4. 下挂饼图数据：下料机产量分布
-                // -------------------------------------------------------------
+                // =========================================================================
                 var dnGroups = rawData
-                    .Where(x => x.LowerHangFlipDeivceName == dnFeederA || x.LowerHangFlipDeivceName == dnFeederB)
-                    .GroupBy(x => x.ProductCategory ?? "未知型号")
+                    .Where(x => targetDnDevices.Contains(x.LowerHangFlipDeivceName))
+                    .GroupBy(x => x.ProductCategory ?? "未知型号") // 如果你想统计颜色，这里可以改成 x.ProductColor
                     .Select(g => new { Name = g.Key, Count = g.Count() })
                     .ToList();
 
@@ -103,92 +125,116 @@ namespace BasicRegionNavigation.Services
                 {
                     result.DnPieData.Add(item.Name, item.Count);
                 }
-                if (result.DnPieData.Count == 0) result.DnPieData.Add("无下料数据", 1); // 占位
+
+                if (result.DnPieData.Count == 0 && targetDnDevices.Any())
+                {
+                    result.DnPieData.Add("无下料数据", 1);
+                }
 
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[PieStats] 统计异常: {ex.Message}");
-                // 异常时返回空对象，防止 UI 崩溃
             }
 
             return result;
         }
 
         /// <summary>
-        /// 获取 ViewB 生产统计数据
+        /// 获取 ViewB 生产统计数据 (已适配 SystemConfig)
         /// </summary>
         /// <param name="modulePrefix">模组前缀，如 "1" 或 "2"</param>
         public async Task<List<ProductInfoTable>> GetViewBProductionStatsAsync(DateTime start, DateTime end, string modulePrefix)
         {
             try
             {
-                // 1. 定义标准设备名称字符串，避免在循环中重复拼接
-                // 上料机标准名
-                string targetUpFeederA = $"{modulePrefix}_PLC_Feeder_A";
-                string targetUpFeederB = $"{modulePrefix}_PLC_Feeder_B";
+                // ========================================================================
+                // 1. 动态生成设备 ID 列表
+                // ========================================================================
 
-                // 下料机标准名 (注意：根据你的要求，这里映射到 UnFeeder)
-                string targetDnFeederA = $"{modulePrefix}_PLC_UnFeeder_A";
-                string targetDnFeederB = $"{modulePrefix}_PLC_UnFeeder_B";
+                // 生成上料设备 ID 列表 (例如: ["1_PLC_Feeder_A", "1_PLC_Feeder_B"])
+                var activeUpDevices = SystemConfig.ActiveUpLoaders
+                    .Select(t => ModbusKeyHelper.BuildDeviceId(modulePrefix, t))
+                    .ToList();
 
-                // 2. 数据库查询：获取时间范围内，该模组相关的所有记录
-                // 只要该记录的 上料设备、上翻转设备、或下翻转设备 名字以模组号开头，都算该模组的数据
+                // 生成下料设备 ID 列表
+                var activeDnDevices = SystemConfig.ActiveDownLoaders
+                    .Select(t => ModbusKeyHelper.BuildDeviceId(modulePrefix, t))
+                    .ToList();
+
+                // 生成翻转台设备 ID 列表 (通常只有一个)
+                var activeFlipperDevices = SystemConfig.FlipperDevice
+                    .Select(t => ModbusKeyHelper.BuildDeviceId(modulePrefix, t))
+                    .ToList();
+
+                // ========================================================================
+                // 2. 准备 UI 映射变量
+                // ========================================================================
+                // 为了填充 DTO 中的 Feeder1/Feeder2 字段，我们需要知道列表中谁是老大，谁是老二
+                // ElementAtOrDefault 防止列表为空或只有一个元素时报错
+
+                string? upDev1 = activeUpDevices.ElementAtOrDefault(0); // 映射到 UpFeeder1
+                string? upDev2 = activeUpDevices.ElementAtOrDefault(1); // 映射到 UpFeeder2
+
+                string? dnDev1 = activeDnDevices.ElementAtOrDefault(0); // 映射到 DnFeeder1
+                string? dnDev2 = activeDnDevices.ElementAtOrDefault(1); // 映射到 DnFeeder2
+
+                // ========================================================================
+                // 3. 数据库查询
+                // ========================================================================
                 var rawList = await _prodRepo.GetListAsync(x =>
                     x.CreateTime >= start &&
                     x.CreateTime <= end &&
                     (
-                        (x.UpLoadDeivceName != null && x.UpLoadDeivceName.StartsWith(modulePrefix)) ||
-                        (x.UpperHangFlipDeivceName != null && x.UpperHangFlipDeivceName.StartsWith(modulePrefix)) ||
-                        (x.LowerHangFlipDeivceName != null && x.LowerHangFlipDeivceName.StartsWith(modulePrefix))
+                        // 只要记录中的设备名 存在于 我们计算出的列表中，就查出来
+                        // SqlSugar/EF 会自动转为 IN (...) 语法
+                        activeUpDevices.Contains(x.UpLoadDeivceName) ||
+                        activeFlipperDevices.Contains(x.UpperHangFlipDeivceName) ||
+                        activeDnDevices.Contains(x.LowerHangFlipDeivceName)
+                    // 注意：如果只是单纯统计下料，用 LowerHangFlipDeivceName 判定即可
                     )
                 );
 
-                // 3. 内存分组统计
+                // ========================================================================
+                // 4. 内存分组统计
+                // ========================================================================
                 var result = rawList
                     .GroupBy(x => x.ProjectNumber ?? "未知项目")
                     .Select(g => new ProductInfoTable
                     {
                         ProjectId = g.Key,
-
-                        // 基础信息 (取第一条非空值)
                         MaterialType = g.Select(x => x.ProductCategory).FirstOrDefault(s => !string.IsNullOrEmpty(s)) ?? "-",
-                        AnodeType = "-", // 数据库若无此字段则给默认值
+                        AnodeType = "-",
 
-                        // --- 上料统计 (根据 DeviceName 精确匹配) ---
+                        // --- 上料统计 ---
+                        // 统计属于 "第一个配置设备" 的数量
+                        UpFeeder1 = upDev1 != null ? g.Count(x => x.UpLoadDeivceName == upDev1) : 0,
+                        // 统计属于 "第二个配置设备" 的数量
+                        UpFeeder2 = upDev2 != null ? g.Count(x => x.UpLoadDeivceName == upDev2) : 0,
 
-                        // 上料机A: UpLoadDeivceName == "1_PLC_Feeder_A"
-                        UpFeeder1 = g.Count(x => x.UpLoadDeivceName == targetUpFeederA),
+                        // 计算总数：直接统计属于列表中的所有记录 (即使未来有 Feeder3 也会被算进 Total)
+                        UpTotalFeederOutput = g.Count(x => activeUpDevices.Contains(x.UpLoadDeivceName)),
 
-                        // 上料机B: UpLoadDeivceName == "1_PLC_Feeder_B"
-                        UpFeeder2 = g.Count(x => x.UpLoadDeivceName == targetUpFeederB),
 
-                        // --- 上翻转台统计 (根据 Time 是否存在) ---
-                        // 逻辑：只要有 UpperHangFlip_Time，且设备名属于当前模组，就算过站
+                        // --- 上翻转台统计 ---
+                        // 逻辑：有时间 且 设备在翻转台列表中
                         UpTurnTable = g.Count(x => x.UpperHangFlip_Time != null &&
-                                                   (x.UpperHangFlipDeivceName != null && x.UpperHangFlipDeivceName.StartsWith(modulePrefix))),
+                                                   activeFlipperDevices.Contains(x.UpperHangFlipDeivceName)),
 
-                        // --- 下料统计 (字段映射: LowerHangFlipDeivceName -> UnFeeder) ---
 
-                        // 下料机A: LowerHangFlipDeivceName == "1_PLC_UnFeeder_A"
-                        DnFeeder1 = g.Count(x => x.LowerHangFlipDeivceName == targetDnFeederA),
+                        // --- 下料统计 ---
+                        DnFeeder1 = dnDev1 != null ? g.Count(x => x.LowerHangFlipDeivceName == dnDev1) : 0,
+                        DnFeeder2 = dnDev2 != null ? g.Count(x => x.LowerHangFlipDeivceName == dnDev2) : 0,
 
-                        // 下料机B: LowerHangFlipDeivceName == "1_PLC_UnFeeder_B"
-                        DnFeeder2 = g.Count(x => x.LowerHangFlipDeivceName == targetDnFeederB),
+                        // 下料总数
+                        DnTotalFeederOutput = g.Count(x => activeDnDevices.Contains(x.LowerHangFlipDeivceName)),
 
-                        // --- 下翻转台统计 (根据 Time 是否存在) ---
-                        // 逻辑：只要有 LowerHangFlip_Time，就算完成了下翻转动作
+
+                        // --- 下翻转台统计 ---
                         DnTurnTable = g.Count(x => x.LowerHangFlip_Time != null &&
-                                                   (x.LowerHangFlipDeivceName != null && x.LowerHangFlipDeivceName.StartsWith(modulePrefix)))
+                                                   activeFlipperDevices.Contains(x.LowerHangFlipDeivceName))
                     })
                     .ToList();
-
-                // 4. 计算合计
-                foreach (var item in result)
-                {
-                    item.UpTotalFeederOutput = item.UpFeeder1 + item.UpFeeder2;
-                    item.DnTotalFeederOutput = item.DnFeeder1 + item.DnFeeder2;
-                }
 
                 return result;
             }
@@ -198,6 +244,7 @@ namespace BasicRegionNavigation.Services
                 return new List<ProductInfoTable>();
             }
         }
+
         public async Task ProcessProductDataAsync(StationProcessContext context)
         {
             // ---------------------------------------------------------

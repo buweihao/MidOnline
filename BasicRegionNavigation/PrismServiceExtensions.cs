@@ -57,53 +57,53 @@ namespace BasicRegionNavigation.Helper
             // 调用 AddMyModbusCore，在回调中处理克隆与参数设置
             services.AddMyModbusCore(modbusConfigPath, devices =>
             {
+                //    var cloneList = new[]
+                //    {
+                //(Template: SystemConfig.Dev_Peripheral,     ModuleId: "1", Ip: "10.120.93.82"),
+
+                //(Template: SystemConfig.Dev_Robot,          ModuleId: "1", Ip: "10.120.93.82"),
+
+                //(Template: SystemConfig.Dev_DownFeeder_A,   ModuleId: "1", Ip: "10.120.93.80"),
+
+                //(Template: SystemConfig.Dev_DownFeeder_B,   ModuleId: "1", Ip: "10.120.93.81"),
+
+                //(Template: SystemConfig.Dev_Flipper,        ModuleId: "1", Ip: "10.120.93.82"),
+
+
+                //(Template: SystemConfig.Dev_Peripheral, ModuleId: "2", Ip: "10.120.93.89"),
+
+                //(Template: SystemConfig.Dev_Robot,      ModuleId: "2", Ip: "10.120.93.89"),
+
+                //(Template: SystemConfig.Dev_DownFeeder_A,   ModuleId: "2", Ip: "10.120.93.87"),
+
+                //(Template: SystemConfig.Dev_DownFeeder_B,   ModuleId: "2", Ip: "10.120.93.88"),
+
+                //(Template: SystemConfig.Dev_Flipper,    ModuleId: "2", Ip: "10.120.93.89"),
+                //};
+
                 var cloneList = new[]
                 {
-            (Template: "PLC_Peripheral", ModuleId: "1", Ip: "10.120.93.82"),
+                    (Template: SystemConfig.Dev_Peripheral, ModuleId: "1", Ip: "127.0.0.1"),
 
-            (Template: "PLC_Robot",      ModuleId: "1", Ip: "10.120.93.82"),
+                    (Template: SystemConfig.Dev_Robot,      ModuleId: "1", Ip: "127.0.0.1"),
 
-            (Template: "PLC_Feeder_A",   ModuleId: "1", Ip: "10.120.93.80"),
+                    (Template: SystemConfig.Dev_DownFeeder_A,   ModuleId: "1", Ip: "127.0.0.2"),
 
-            (Template: "PLC_Feeder_B",   ModuleId: "1", Ip: "10.120.93.81"),
+                    (Template:  SystemConfig.Dev_DownFeeder_B,   ModuleId: "1", Ip: "127.0.0.3"),
 
-            (Template: "PLC_Flipper",    ModuleId: "1", Ip: "10.120.93.82"),
+                    (Template: SystemConfig.Dev_Flipper,    ModuleId: "1", Ip: "127.0.0.1"),
 
+                    (Template: SystemConfig.Dev_Peripheral, ModuleId: "2", Ip: "127.0.0.4"),
 
-            (Template: "PLC_Peripheral", ModuleId: "2", Ip: "10.120.93.89"),
+                    (Template: SystemConfig.Dev_Robot,      ModuleId: "2", Ip: "127.0.0.4"),
 
-            (Template: "PLC_Robot",      ModuleId: "2", Ip: "10.120.93.89"),
+                    (Template: SystemConfig.Dev_DownFeeder_A,   ModuleId: "2", Ip: "127.0.0.5"),
 
-            (Template: "PLC_Feeder_A",   ModuleId: "2", Ip: "10.120.93.87"),
+                    (Template:  SystemConfig.Dev_DownFeeder_B,   ModuleId: "2", Ip: "127.0.0.6"),
 
-            (Template: "PLC_Feeder_B",   ModuleId: "2", Ip: "10.120.93.88"),
+                    (Template: SystemConfig.Dev_Flipper,    ModuleId: "2", Ip: "127.0.0.4"),
 
-            (Template: "PLC_Flipper",    ModuleId: "2", Ip: "10.120.93.89"),
-        };
-
-        //        var cloneList = new[]
-        //        {
-        //    (Template: "PLC_Peripheral", ModuleId: "1", Ip: "127.0.0.1"),
-
-        //    (Template: "PLC_Robot",      ModuleId: "1", Ip: "127.0.0.1"),
-
-        //    (Template: "PLC_Feeder_A",   ModuleId: "1", Ip: "127.0.0.2"),
-
-        //    (Template: "PLC_Feeder_B",   ModuleId: "1", Ip: "127.0.0.3"),
-
-        //    (Template: "PLC_Flipper",    ModuleId: "1", Ip: "127.0.0.1"),
-
-        //    (Template: "PLC_Peripheral", ModuleId: "2", Ip: "127.0.0.4"),
-
-        //    (Template: "PLC_Robot",      ModuleId: "2", Ip: "127.0.0.4"),
-
-        //    (Template: "PLC_Feeder_A",   ModuleId: "2", Ip: "127.0.0.5"),
-
-        //    (Template: "PLC_Feeder_B",   ModuleId: "2", Ip: "127.0.0.6"),
-
-        //    (Template: "PLC_Flipper",    ModuleId: "2", Ip: "127.0.0.4"),
-
-        //};
+                };
 
                 var templatesToRemove = new HashSet<Device>();
 
@@ -137,7 +137,7 @@ namespace BasicRegionNavigation.Helper
                     // 设置为 CDAB 模式 (双字反转)
                     device.ByteOrder = MyModbus.DataFormat.CDAB;
 
-                    if(false)
+                    if (false)
                     {
                         device.IsStringReverse = false;
                     }
@@ -173,4 +173,4 @@ namespace BasicRegionNavigation.Helper
             //services.AddTransient<IUpDropHourlyCapacityService, UpDropHourlyCapacityService>();
         }
     }
-}   
+}

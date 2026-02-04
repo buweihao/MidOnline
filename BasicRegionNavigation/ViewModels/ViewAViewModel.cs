@@ -184,8 +184,8 @@ namespace BasicRegionNavigation.ViewModels
                 
                     // 3. 供料机 (Feeder) - 注意这里做了“改名”映射
                     // CSV里叫 PLC_Feeder_A_Status，UI里叫 FeederAStatus，Mapping 负责桥接
-                    { "FeederAStatus",             "PLC_Feeder_A_Status" },
-                    { "FeederBStatus",             "PLC_Feeder_B_Status" },
+                    { "FeederAStatus",             "PLC_UnFeeder_A_Status" },
+                    { "FeederBStatus",             "PLC_UnFeeder_B_Status" },
                 
                     // 4. 翻转台 (Flipper)
                     { "FlipperStatus",             "PLC_Flipper_Status" }
@@ -200,8 +200,8 @@ namespace BasicRegionNavigation.ViewModels
                 // --- B. 订阅产能 (Capacity) ---
                 var capacityMapping = new Dictionary<string, string>
                 {
-                    { "FeederACapacity", "PLC_Feeder_A_TotalCapacity" },
-                    { "FeederBCapacity", "PLC_Feeder_B_TotalCapacity" },
+                    { "FeederACapacity", "PLC_UnFeeder_A_TotalCapacity" },
+                    { "FeederBCapacity", "PLC_UnFeeder_B_TotalCapacity" },
                     // 翻转台产能
                     { "FlipperCapacity", "PLC_Flipper_TotalCapacity" }        
                 };
@@ -237,14 +237,14 @@ namespace BasicRegionNavigation.ViewModels
                 // --- E. 报警信息订阅 ---
                 var warningMapping = new Dictionary<string, string>
         {
-            { "FeederASensorFault",       "PLC_Feeder_A_SensorFault" },
-            { "FeederAComponentFault",    "PLC_Feeder_A_ComponentFault" },
-            { "FeederATraceCommFault",    "PLC_Feeder_A_TraceCommFault" },
-            { "FeederAMasterCommFault",   "PLC_Feeder_A_MasterCommFault" },
-            { "FeederBSensorFault",       "PLC_Feeder_B_SensorFault" },
-            { "FeederBComponentFault",    "PLC_Feeder_B_ComponentFault" },
-            { "FeederBTraceCommFault",    "PLC_Feeder_B_TraceCommFault" },
-            { "FeederBMasterCommFault",   "PLC_Feeder_B_MasterCommFault" },
+            { "FeederASensorFault",       "PLC_UnFeeder_A_SensorFault" },
+            { "FeederAComponentFault",    "PLC_UnFeeder_A_ComponentFault" },
+            { "FeederATraceCommFault",    "PLC_UnFeeder_A_TraceCommFault" },
+            { "FeederAMasterCommFault",   "PLC_UnFeeder_A_MasterCommFault" },
+            { "FeederBSensorFault",       "PLC_UnFeeder_B_SensorFault" },
+            { "FeederBComponentFault",    "PLC_UnFeeder_B_ComponentFault" },
+            { "FeederBTraceCommFault",    "PLC_UnFeeder_B_TraceCommFault" },
+            { "FeederBMasterCommFault",   "PLC_UnFeeder_B_MasterCommFault" },
             { "FlipperSensorFault",       "PLC_Flipper_SensorFault" },
             { "FlipperComponentFault",    "PLC_Flipper_ComponentFault" },
             { "FlipperTraceCommFault",    "PLC_Flipper_TraceCommFault" },

@@ -53,14 +53,17 @@ namespace BasicRegionNavigation.ViewModels
         // 定时器回调：在 UI 线程执行，直接赋值属性即可
         private void OnMonitorTick(object? sender, EventArgs e)
         {
-            UpdateModel1Status();
-            UpdateModel2Status();
-            //UpdateModel3Status();
-            //UpdateModel4Status();
-            //UpdateModel5Status();
-            //UpdateModel6Status();
+            // 遍历 SystemConfig 中定义的每一个模组前缀 (如 "1", "2")
+            foreach (var module in SystemConfig.Modules)
+            {
+                // 将字符串 "1" 转换为整数 1，用于定位 UI 属性
+                if (int.TryParse(module, out int index))
+                {
+                    // 调用统一的更新方法
+                    UpdateModuleStatus(module, index);
+                }
+            }
         }
-
         // =======================================================================
         // 状态更新逻辑
         // =======================================================================
@@ -73,29 +76,53 @@ namespace BasicRegionNavigation.ViewModels
             return isOnline ? ColorConnected : ColorDisconnected;
         }
 
-        private void UpdateModel1Status()
+        /// <summary>
+        /// 统一的模组状态更新逻辑
+        /// </summary>
+        private void UpdateModuleStatus(string modulePrefix, int uiIndex)
         {
-            // 假设：config.csv 中定义的 DeviceID 分别是 "PLC_Feeder_A", "PLC_Feeder_B" 等
-            // 你需要根据实际的业务逻辑，将 UI 的线条对应到具体的 PLC DeviceID
+            // --- 1. 获取设备 ID 列表 ---
+            // 上料机列表
+            var upDevs = SystemConfig.ActiveUpLoaders
+                .Select(t => ModbusKeyHelper.BuildDeviceId(modulePrefix, t)).ToList();
 
+            // 下料机列表
+            var dnDevs = SystemConfig.ActiveDownLoaders
+                .Select(t => ModbusKeyHelper.BuildDeviceId(modulePrefix, t)).ToList();
 
+            // 翻转台 ID
+            string flipperId = ModbusKeyHelper.BuildDeviceId(modulePrefix, SystemConfig.Dev_Flipper);
+            var flipperBrush = GetStatusBrush(flipperId);
 
-            Model1LineColorUpLoad1 = GetStatusBrush(ModbusKeyHelper.BuildDeviceId("1", "PLC_Feeder_A"));
-            Model1LineColorUpLoad2 = GetStatusBrush(ModbusKeyHelper.BuildDeviceId("1", "PLC_Feeder_B"));
+            // --- 2. 设置上挂线条 (UpLoad) ---
+            // 如果 ActiveUpLoaders 为空，Count > 0 就会为 false，线条自动变灰
+            SetPropertyBrush($"Model{uiIndex}LineColorUpLoad1", upDevs.Count > 0 ? GetStatusBrush(upDevs[0]) : Brushes.Gray);
+            SetPropertyBrush($"Model{uiIndex}LineColorUpLoad2", upDevs.Count > 1 ? GetStatusBrush(upDevs[1]) : Brushes.Gray);
 
-            Model1LineColorAround = GetStatusBrush(ModbusKeyHelper.BuildDeviceId("1", "PLC_Flipper"));
-            Model1LineColorBatch = Model1LineColorAround;
+            // --- 3. 设置下挂线条 (DnLoad / DownLoad) ---
+            // 请确保你的 ViewModel 中有 Model1LineColorDnLoad1 这样的属性
+            SetPropertyBrush($"Model{uiIndex}LineColorDnLoad1", dnDevs.Count > 0 ? GetStatusBrush(dnDevs[0]) : Brushes.Gray);
+            SetPropertyBrush($"Model{uiIndex}LineColorDnLoad2", dnDevs.Count > 1 ? GetStatusBrush(dnDevs[1]) : Brushes.Gray);
+
+            // --- 4. 设置翻转台相关线条 ---
+            SetPropertyBrush($"Model{uiIndex}LineColorAround", flipperBrush);
+            SetPropertyBrush($"Model{uiIndex}LineColorBatch", flipperBrush);
+
+            // 如果有中间过渡线的逻辑，也可以统一在这里赋值
         }
 
-        private void UpdateModel2Status()
+        /// <summary>
+        /// 反射辅助方法：根据字符串名称给属性赋值
+        /// </summary>
+        private void SetPropertyBrush(string propertyName, Brush brush)
         {
-            Model2LineColorUpLoad1 = GetStatusBrush(ModbusKeyHelper.BuildDeviceId("2", "PLC_Feeder_A"));
-            Model2LineColorUpLoad2 = GetStatusBrush(ModbusKeyHelper.BuildDeviceId("2", "PLC_Feeder_B"));
-
-            Model2LineColorAround = GetStatusBrush(ModbusKeyHelper.BuildDeviceId("2", "PLC_Flipper"));
-            Model2LineColorBatch = Model2LineColorAround;
+            // 在当前 ViewModel/View 中查找名为 propertyName 的公共属性
+            var prop = this.GetType().GetProperty(propertyName);
+            if (prop != null && prop.CanWrite)
+            {
+                prop.SetValue(this, brush);
+            }
         }
-
         private void UpdateModel3Status() { /* ... */ }
         private void UpdateModel4Status() { /* ... */ }
         private void UpdateModel5Status() { /* ... */ }

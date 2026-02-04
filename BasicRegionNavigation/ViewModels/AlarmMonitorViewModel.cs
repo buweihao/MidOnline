@@ -162,7 +162,7 @@ namespace BasicRegionNavigation.ViewModels
         private void InitializeSubscriptions()
         {
             // 定义需要监控的所有模组 ID
-            var allModuleIds = new[] { "1", "2" };
+            var allModuleIds = SystemConfig.Modules;
 
             // 定义点位映射 (Key: UI标识, Value: PLC点位后缀)
             // 这里的 Value 必须与 CSV 中的 TagName 后缀一致

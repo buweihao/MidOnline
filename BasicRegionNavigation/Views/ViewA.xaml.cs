@@ -43,16 +43,6 @@ namespace BasicRegionNavigation.Views
             {
                 模组1.Visibility = Modules >= 1 ? Visibility.Visible : Visibility.Hidden;
                 模组2.Visibility = Modules >= 2 ? Visibility.Visible : Visibility.Hidden;
-                模组3.Visibility = Modules >= 3 ? Visibility.Visible : Visibility.Hidden;
-                模组4.Visibility = Modules >= 4 ? Visibility.Visible : Visibility.Hidden;
-                模组5.Visibility = Modules >= 5 ? Visibility.Visible : Visibility.Hidden;
-                模组6.Visibility = Modules >= 6 ? Visibility.Visible : Visibility.Hidden;
-                模组7.Visibility = Modules >= 7 ? Visibility.Visible : Visibility.Hidden;
-                模组8.Visibility = Modules >= 8 ? Visibility.Visible : Visibility.Hidden;
-                模组9.Visibility = Modules >= 9 ? Visibility.Visible : Visibility.Hidden;
-                模组10.Visibility = Modules >= 10 ? Visibility.Visible : Visibility.Hidden;
-                模组11.Visibility = Modules >= 11 ? Visibility.Visible : Visibility.Hidden;
-                模组12.Visibility = Modules >= 12 ? Visibility.Visible : Visibility.Hidden;
             });
         }
 

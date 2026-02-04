@@ -142,43 +142,68 @@ namespace BasicRegionNavigation.Services
 
 
         #region  业务一、产品信息采集
-        private const string ModuleId = "1"; // 建议放入配置或作为类属性
-        private const string TriggerSuffix = "ReadTrigger"; // 统一的后缀，防止手写错误
         public void ProductCollectionMissionStart()
         {
-            // --- 供料机 (Feeders) ---
-            // 对应 CSV: PLC_Feeder_A_ReadTrigger -> 运行时: 1_PLC_Feeder_A_ReadTrigger
-            SubscribeToDevice("PLC_Feeder_A", TriggerSuffix, HandleUpLoad_Trigger);
-            SubscribeToDevice("PLC_Feeder_B", TriggerSuffix, HandleUpLoad_Trigger);
+            // =============================================================
+            // 1. 上料机 (遍历启用列表)
+            // =============================================================
+            // 只有在 SystemConfig.ActiveUpLoaders 里配了设备，这里才会执行
+            foreach (var deviceTemplate in SystemConfig.ActiveUpLoaders)
+            {
+                // 绑定上料逻辑 HandleUpLoad_Trigger
+                SubscribeToDevice(deviceTemplate, SystemConfig.TriggerSuffix, HandleUpLoad_Trigger);
+            }
 
-            // --- 翻转台 (Flipper) ---
-            // 翻转台比较特殊，CSV 中设备ID是 PLC_Flipper，但点位区分了 A/B 面
-            // 对应 CSV: PLC_Flipper_A_ReadTrigger -> 运行时: 1_PLC_Flipper_A_ReadTrigger
-            // 因此这里的后缀需要补上 "A_" 或 "B_"
-            SubscribeToDevice("PLC_Flipper", $"A_{TriggerSuffix}", HandleFlipper_Trigger);
-            SubscribeToDevice("PLC_Flipper", $"B_{TriggerSuffix}", HandleFlipper_Trigger);
+            // =============================================================
+            // 2. 下料机 (遍历启用列表 - 新增)
+            // =============================================================
+            // 只有在 SystemConfig.ActiveDownLoaders 里配了设备，这里才会执行
+            foreach (var deviceTemplate in SystemConfig.ActiveDownLoaders)
+            {
+                // [注意] 下料通常需要不同的处理逻辑 (HandleDownLoad_Trigger)
+                // 因为上料是 "Entry_Upload" (创建/录入)，下料是 "Exit_Download" (完结/更新)
+                SubscribeToDevice(deviceTemplate, SystemConfig.TriggerSuffix, HandleDownLoad_Trigger);
+            }
 
+            // =============================================================
+            // 3. 翻转台 (Flipper)
+            // =============================================================
+            // 使用 SystemConfig.Dev_Flipper 常量
+            // 翻转台一般是固定的，所以直接用常量引用
+            SubscribeToDevice(SystemConfig.Dev_Flipper, $"A_{SystemConfig.TriggerSuffix}", HandleFlipper_Trigger);
+            SubscribeToDevice(SystemConfig.Dev_Flipper, $"B_{SystemConfig.TriggerSuffix}", HandleFlipper_Trigger);
         }
+
+
+
         /// <summary>
         /// 通用订阅辅助方法
         /// </summary>
         /// <param name="templateDeviceId">CSV中的原始设备ID (如 PLC_Feeder_A)</param>
         /// <param name="pointSuffix">点位后缀 (如 ReadTrigger)</param>
         /// <param name="handler">回调函数</param>
+        /// <summary>
+        /// 通用订阅辅助方法 (已升级支持多模组)
+        /// </summary>
         private void SubscribeToDevice(string templateDeviceId, string pointSuffix, Action<TagData> handler)
         {
-            // 1. 构造运行时的设备 ID (自动加上模组前缀)
-            // 结果: "1_PLC_Feeder_A"
-            string realDeviceId = ModbusKeyHelper.BuildDeviceId(ModuleId, templateDeviceId);
+            // 使用 SystemConfig.Modules 遍历所有定义的模组 (例如 "1", "2")
+            foreach (var module in SystemConfig.Modules)
+            {
+                // 1. 构造运行时的设备 ID (自动加上模组前缀)
+                // 注意：这里使用循环变量 module，而不是之前的 ModuleId
+                // 结果示例: "1_PLC_Feeder_A", "2_PLC_Feeder_A"
+                string realDeviceId = ModbusKeyHelper.BuildDeviceId(module, templateDeviceId);
 
-            // 2. 构造完整的点位名 (自动加上分隔符)
-            // 结果: "1_PLC_Feeder_A_ReadTrigger"
-            string finalTagName = ModbusKeyHelper.Build(realDeviceId, null, pointSuffix);
+                // 2. 构造完整的点位名
+                // 结果示例: "1_PLC_Feeder_A_ReadTrigger"
+                string finalTagName = ModbusKeyHelper.Build(realDeviceId, null, pointSuffix);
 
-            // 3. 注册订阅
-            _bus.Subscribe(finalTagName, handler);
+                // 3. 注册订阅
+                // 为每个模组的对应设备都绑定同一个处理函数
+                _bus.Subscribe(finalTagName, handler);
+            }
         }
-
 
         private void HandleUpLoad_Trigger(TagData data)
         {
@@ -209,11 +234,38 @@ namespace BasicRegionNavigation.Services
                 //回写
                 _engine.WriteTag(data.TagName, 0);
             }
-
-
-
         }
 
+        private void HandleDownLoad_Trigger(TagData data)
+        {
+            //上料机这边是触发点为1时表示触发，读完回写0即可
+            if (data.IsQualityGood && data.Value is System.Int16 speed && speed == 1)
+            {
+                //触发成功
+                //去缓冲区读产品码,先要知道那个点位名
+                //使用代理，传入触发点TagData，可以直接代理获取对应数据
+                var flipper = new UpLoadProxy(_bus, data);
+
+                //通过代理获取产品码
+                var ProductCode = flipper.ProductCode;
+                //通过代理获取所属机器名
+                var BelongMechine = flipper.DeviceName;
+
+                if (ProductCode is string)
+                {
+                    var contextA = StationProcessContext.Create(
+                        deviceId: BelongMechine,
+                        identity: (string)ProductCode,        // 传 SN
+                        type: StationProcessType.Entry_Upload, // 明确指明是上料
+                        data: null
+                    );
+                    _productionService.ProcessProductDataAsync(contextA);
+                }
+
+                //回写
+                _engine.WriteTag(data.TagName, 0);
+            }
+        }
 
         private void HandleFlipper_Trigger(TagData data)
         {
@@ -273,10 +325,10 @@ namespace BasicRegionNavigation.Services
         public void FeedersHourlyDataCollectionMissionStart()
         {
             // 1. 定义模组列表
-            string[] modules = new[] { "1", "2" };
+            string[] modules = SystemConfig.Modules;
 
             // 2. 定义设备模板
-            string[] feeders = new[] { "PLC_Feeder_A", "PLC_Feeder_B" };
+            string[] feeders = SystemConfig.ActiveUpLoaders;
 
             // 3. 遍历采集
             foreach (var module in modules)
@@ -336,7 +388,7 @@ namespace BasicRegionNavigation.Services
         public void FlipperHourlyDataCollectionMissionStart()
         {
             // 1. 定义模组列表
-            string[] modules = new[] { "1", "2" };
+            string[] modules = SystemConfig.Modules;
 
             // 2. 翻转台设备模板名
             string templateDeviceName = "PLC_Flipper";
@@ -403,20 +455,27 @@ namespace BasicRegionNavigation.Services
         /// 启动转产信号监听与转发任务
         /// [修改] 改为订阅模式：只需在程序启动时调用一次即可，无需循环调用
         /// </summary>
+        /// <summary>
+        /// 启动转产信号监听与转发任务
+        /// [适配版] 自动根据 SystemConfig 中启用的供料机列表进行订阅
+        /// </summary>
         public void ChangeoverMissionStart()
         {
-            // 1. 定义模组列表 (1号和2号)
-            string[] modules = new[] { "1", "2" };
+            // 1. 获取模组列表 (来自 SystemConfig)
+            string[] modules = SystemConfig.Modules;
 
-            // 2. 遍历模组进行订阅
+            // 2. 遍历所有模组
             foreach (var module in modules)
             {
-                // 分别订阅 Feeder A 和 Feeder B 的转产信号
-                SubscribeToChangeover(module, "PLC_Feeder_A");
-                SubscribeToChangeover(module, "PLC_Feeder_B");
+                // 3. 遍历所有当前激活的供料机 (自动包含上料和下料设备)
+                // 这样即使你将 Dev_UpFeeder_A 改名为 PLC_UpFeeder_01，这里也能自动识别
+                foreach (var feederTemplate in SystemConfig.AllActiveFeeders)
+                {
+                    // 注册转产订阅：监听该供料机的 ChangeoverTrigger 信号
+                    SubscribeToChangeover(module, feederTemplate);
+                }
             }
         }
-
         /// <summary>
         /// 注册单个设备的转产信号订阅
         /// </summary>
@@ -542,9 +601,9 @@ namespace BasicRegionNavigation.Services
         public void TimeSyncMissionStart()
         {
             // 定义模组和设备列表
-            string[] modules = new[] { "1", "2" };
+            string[] modules = SystemConfig.Modules;
             // 注意：这里使用的是 CSV 里的原始设备名
-            string[] devices = new[] { "PLC_Flipper", "PLC_Feeder_A", "PLC_Feeder_B" };
+            string[] devices = SystemConfig.AllTimeSyncDevices;
 
             foreach (var module in modules)
             {
