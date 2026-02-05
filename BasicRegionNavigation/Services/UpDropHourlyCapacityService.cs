@@ -1,4 +1,5 @@
-﻿using BasicRegionNavigation.ViewModels;
+﻿using BasicRegionNavigation.Helper;
+using BasicRegionNavigation.ViewModels;
 using MyDatabase;
 using SqlSugar;
 using System;
@@ -51,18 +52,40 @@ namespace BasicRegionNavigation.Services
                 .Select(g => new ProductInfoTable
                 {
                     ProjectId = g.Key ?? "-",
-                    // 上料机A (假设设备名包含 Feeder_A)
-                    UpFeeder1 = g.Where(x => x.DeviceName.Contains("Feeder_A")).Sum(x => x.HourlyCapacity),
-                    // 上料机B
-                    UpFeeder2 = g.Where(x => x.DeviceName.Contains("Feeder_B")).Sum(x => x.HourlyCapacity),
 
-                    // 下料机同理 (假设下料机也在这张表，且名字包含 Down 或 Unload，根据实际情况调整)
-                    DnFeeder1 = g.Where(x => x.DeviceName.Contains("Unload_A")).Sum(x => x.HourlyCapacity),
-                    DnFeeder2 = g.Where(x => x.DeviceName.Contains("Unload_B")).Sum(x => x.HourlyCapacity),
+                    // ----------------------------------------------------------
+                    // 上料机统计 (使用 SystemConfig.Dev_UpFeeder_A / B)
+                    // ----------------------------------------------------------
+                    UpFeeder1 = g.Where(x => x.DeviceName.Contains(SystemConfig.Dev_UpFeeder_A))
+                                 .Sum(x => x.HourlyCapacity),
 
-                    // 计算 Feeder 合计
-                    UpTotalFeederOutput = g.Where(x => x.DeviceName.Contains("Feeder")).Sum(x => x.HourlyCapacity),
-                    DnTotalFeederOutput = g.Where(x => x.DeviceName.Contains("Unload")).Sum(x => x.HourlyCapacity)
+                    UpFeeder2 = g.Where(x => x.DeviceName.Contains(SystemConfig.Dev_UpFeeder_B))
+                                 .Sum(x => x.HourlyCapacity),
+
+                    // ----------------------------------------------------------
+                    // 下料机统计 (使用 SystemConfig.Dev_DownFeeder_A / B)
+                    // ----------------------------------------------------------
+                    DnFeeder1 = g.Where(x => x.DeviceName.Contains(SystemConfig.Dev_DownFeeder_A))
+                                 .Sum(x => x.HourlyCapacity),
+
+                    DnFeeder2 = g.Where(x => x.DeviceName.Contains(SystemConfig.Dev_DownFeeder_B))
+                                 .Sum(x => x.HourlyCapacity),
+
+                    // ----------------------------------------------------------
+                    // 合计统计
+                    // 建议：明确指定包含哪些设备，而不是模糊匹配 "Feeder" (因为 UnFeeder 也包含 Feeder)
+                    // ----------------------------------------------------------
+
+                    // 上料合计：匹配 上料A 或 上料B
+                    UpTotalFeederOutput = g.Where(x => x.DeviceName.Contains(SystemConfig.Dev_UpFeeder_A) ||
+                                                       x.DeviceName.Contains(SystemConfig.Dev_UpFeeder_B))
+                                           .Sum(x => x.HourlyCapacity),
+
+                    // 下料合计：匹配 下料A 或 下料B
+                    DnTotalFeederOutput = g.Where(x => x.DeviceName.Contains(SystemConfig.Dev_DownFeeder_A) ||
+                                                       x.DeviceName.Contains(SystemConfig.Dev_DownFeeder_B))
+                                           .Sum(x => x.HourlyCapacity)
+
                 }).ToList();
 
             // 3. 聚合效能信息 (按设备)

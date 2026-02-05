@@ -168,10 +168,10 @@ namespace BasicRegionNavigation.Services
             // =============================================================
             // 3. 翻转台 (Flipper)
             // =============================================================
-            // 使用 SystemConfig.Dev_Flipper 常量
+            // 使用 SystemConfig.Dev_UpFlipper 常量
             // 翻转台一般是固定的，所以直接用常量引用
-            SubscribeToDevice(SystemConfig.Dev_Flipper, $"A_{SystemConfig.TriggerSuffix}", HandleFlipper_Trigger);
-            SubscribeToDevice(SystemConfig.Dev_Flipper, $"B_{SystemConfig.TriggerSuffix}", HandleFlipper_Trigger);
+            SubscribeToDevice(SystemConfig.Dev_UpFlipper, $"A_{SystemConfig.TriggerSuffix}", HandleFlipper_Trigger);
+            SubscribeToDevice(SystemConfig.Dev_UpFlipper, $"B_{SystemConfig.TriggerSuffix}", HandleFlipper_Trigger);
         }
 
 
@@ -328,7 +328,7 @@ namespace BasicRegionNavigation.Services
             string[] modules = SystemConfig.Modules;
 
             // 2. 定义设备模板
-            string[] feeders = SystemConfig.ActiveUpLoaders;
+            string[] feeders = SystemConfig.AllActiveFeeders;
 
             // 3. 遍历采集
             foreach (var module in modules)

@@ -1,4 +1,5 @@
-﻿using BasicRegionNavigation.ViewModels;
+﻿using BasicRegionNavigation.Helper;
+using BasicRegionNavigation.ViewModels;
 using MyDatabase;
 using SqlSugar;
 using System;
@@ -38,21 +39,34 @@ namespace BasicRegionNavigation.Services
 
             var result = new ModuleStatsDto();
 
-            // 1. 聚合生产信息 (按项目号)
+            string targetFlipper = $"{modulePrefix}_{SystemConfig.Dev_UpFlipper}";
+
+            // 如果你有下翻转台的定义，也需要这样拼接
+            // string targetFlipperDown = $"{modulePrefix}_{SystemConfig.Dev_Flipper_Down}";
+
+
+            // ---------------------------------------------------------
+            // 2. 修改 LINQ 查询逻辑
+            // ---------------------------------------------------------
             result.ProductInfos = rawData
                 .GroupBy(x => x.ProjectNumber)
                 .Select(g => new ProductInfoTable
                 {
                     ProjectId = g.Key ?? "-",
-                    // 从翻转台记录中获取类别信息 (取第一条非空的)
+
+                    // 获取类别信息
                     MaterialType = g.Select(x => x.MaterialCategory).FirstOrDefault(s => !string.IsNullOrEmpty(s)) ?? "-",
                     AnodeType = g.Select(x => x.AnodeType).FirstOrDefault(s => !string.IsNullOrEmpty(s)) ?? "-",
 
-                    // 上翻转台产能 (假设设备名包含 Up 或 Flipper_A)
-                    UpTurnTable = g.Where(x => x.DeviceName.Contains("Flipper") && !x.DeviceName.Contains("Down")).Sum(x => x.HourlyCapacity),
+                    // [核心修正] 使用拼接后的 targetFlipper 进行精确匹配
+                    UpTurnTable = g.Where(x => x.DeviceName == targetFlipper)
+                                   .Sum(x => x.HourlyCapacity),
 
-                    // 下翻转台产能 (假设设备名包含 Down)
-                    DnTurnTable = g.Where(x => x.DeviceName.Contains("Down")).Sum(x => x.HourlyCapacity)
+                    // 下翻转台 (如果没有下翻转台，或者没定义，暂时给 0)
+                    // 如果想模糊匹配，可以用 EndsWith，但由于你已经明确知道是哪个模组的数据，
+                    // 建议还是去 SystemConfig 定义好 Dev_Flipper_Down 然后拼接
+                    DnTurnTable = g.Where(x => x.DeviceName == targetFlipper)
+                                   .Sum(x => x.HourlyCapacity)
                 }).ToList();
 
             // 2. 聚合效能信息

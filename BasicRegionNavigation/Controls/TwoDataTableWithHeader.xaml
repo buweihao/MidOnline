@@ -23,7 +23,7 @@
                 <!-- 上表 -->
                 <RowDefinition Height="Auto" />
                 <!-- 分隔线(可选) -->
-                <RowDefinition Height="*" />
+                <!--<RowDefinition Height="*" />-->
                 <!-- 下表 -->
             </Grid.RowDefinitions>
 
@@ -34,9 +34,8 @@
                             Style="{StaticResource SectionHeaderStyle}" />
 
             <!-- 上表 -->
-            <DataGrid x:Name="gridTop"
+            <DataGrid x:Name="gridTop" Visibility="Collapsed"
                       Grid.Row="1" 
-                      Grid.RowSpan="3"
                       ItemsSource="{Binding ItemsSourceTop,
                                             RelativeSource={RelativeSource AncestorType={x:Type local:TwoDataTableWithHeader}}}"                      AutoGenerateColumns="False"
                       CanUserAddRows="False"
@@ -106,8 +105,8 @@
                     Background="#40FFFFFF" />
 
             <!-- 下表 -->
-            <DataGrid x:Name="gridBottom" Visibility="Collapsed"
-                      Grid.Row="3"
+            <DataGrid x:Name="gridBottom" Visibility="Visible"
+                      Grid.Row="1"
                       ItemsSource="{Binding ItemsSourceBottom,
                                             RelativeSource={RelativeSource AncestorType={x:Type local:TwoDataTableWithHeader}}}"
                       AutoGenerateColumns="False"

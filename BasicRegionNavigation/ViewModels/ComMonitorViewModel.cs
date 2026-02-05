@@ -91,7 +91,7 @@ namespace BasicRegionNavigation.ViewModels
                 .Select(t => ModbusKeyHelper.BuildDeviceId(modulePrefix, t)).ToList();
 
             // 翻转台 ID
-            string flipperId = ModbusKeyHelper.BuildDeviceId(modulePrefix, SystemConfig.Dev_Flipper);
+            string flipperId = ModbusKeyHelper.BuildDeviceId(modulePrefix, SystemConfig.Dev_UpFlipper);
             var flipperBrush = GetStatusBrush(flipperId);
 
             // --- 2. 设置上挂线条 (UpLoad) ---

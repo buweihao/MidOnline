@@ -67,7 +67,7 @@ namespace BasicRegionNavigation.Helper
 
                 //(Template: SystemConfig.Dev_DownFeeder_B,   ModuleId: "1", Ip: "10.120.93.81"),
 
-                //(Template: SystemConfig.Dev_Flipper,        ModuleId: "1", Ip: "10.120.93.82"),
+                //(Template: SystemConfig.Dev_UpFlipper,        ModuleId: "1", Ip: "10.120.93.82"),
 
 
                 //(Template: SystemConfig.Dev_Peripheral, ModuleId: "2", Ip: "10.120.93.89"),
@@ -78,37 +78,37 @@ namespace BasicRegionNavigation.Helper
 
                 //(Template: SystemConfig.Dev_DownFeeder_B,   ModuleId: "2", Ip: "10.120.93.88"),
 
-                //(Template: SystemConfig.Dev_Flipper,    ModuleId: "2", Ip: "10.120.93.89"),
+                //(Template: SystemConfig.Dev_UpFlipper,    ModuleId: "2", Ip: "10.120.93.89"),
                 //};
 
-                var cloneList = new[]
-                {
-                    (Template: SystemConfig.Dev_Peripheral, ModuleId: "1", Ip: "127.0.0.1"),
+                //var cloneList = new[]
+                //{
+                //    (Template: SystemConfig.Dev_Peripheral, ModuleId: "1", Ip: "127.0.0.1"),
 
-                    (Template: SystemConfig.Dev_Robot,      ModuleId: "1", Ip: "127.0.0.1"),
+                //    (Template: SystemConfig.Dev_Robot,      ModuleId: "1", Ip: "127.0.0.1"),
 
-                    (Template: SystemConfig.Dev_DownFeeder_A,   ModuleId: "1", Ip: "127.0.0.2"),
+                //    (Template: SystemConfig.Dev_DownFeeder_A,   ModuleId: "1", Ip: "127.0.0.2"),
 
-                    (Template:  SystemConfig.Dev_DownFeeder_B,   ModuleId: "1", Ip: "127.0.0.3"),
+                //    (Template:  SystemConfig.Dev_DownFeeder_B,   ModuleId: "1", Ip: "127.0.0.3"),
 
-                    (Template: SystemConfig.Dev_Flipper,    ModuleId: "1", Ip: "127.0.0.1"),
+                //    (Template: SystemConfig.Dev_UpFlipper,    ModuleId: "1", Ip: "127.0.0.1"),
 
-                    (Template: SystemConfig.Dev_Peripheral, ModuleId: "2", Ip: "127.0.0.4"),
+                //    //(Template: SystemConfig.Dev_Peripheral, ModuleId: "2", Ip: "127.0.0.4"),
 
-                    (Template: SystemConfig.Dev_Robot,      ModuleId: "2", Ip: "127.0.0.4"),
+                //    //(Template: SystemConfig.Dev_Robot,      ModuleId: "2", Ip: "127.0.0.4"),
 
-                    (Template: SystemConfig.Dev_DownFeeder_A,   ModuleId: "2", Ip: "127.0.0.5"),
+                //    //(Template: SystemConfig.Dev_DownFeeder_A,   ModuleId: "2", Ip: "127.0.0.5"),
 
-                    (Template:  SystemConfig.Dev_DownFeeder_B,   ModuleId: "2", Ip: "127.0.0.6"),
+                //    //(Template:  SystemConfig.Dev_DownFeeder_B,   ModuleId: "2", Ip: "127.0.0.6"),
 
-                    (Template: SystemConfig.Dev_Flipper,    ModuleId: "2", Ip: "127.0.0.4"),
+                //    //(Template: SystemConfig.Dev_UpFlipper,    ModuleId: "2", Ip: "127.0.0.4"),
 
-                };
+                //};
 
                 var templatesToRemove = new HashSet<Device>();
 
                 // 2. 执行设备克隆逻辑
-                foreach (var item in cloneList)
+                foreach (var item in SystemConfig.CloneList)
                 {
                     var template = devices.FirstOrDefault(d => d.DeviceId == item.Template);
                     if (template != null)
