@@ -35,7 +35,8 @@
 
             <!-- 上表 -->
             <DataGrid x:Name="gridTop"
-                      Grid.Row="1"
+                      Grid.Row="1" 
+                      Grid.RowSpan="3"
                       ItemsSource="{Binding ItemsSourceTop,
                                             RelativeSource={RelativeSource AncestorType={x:Type local:TwoDataTableWithHeader}}}"                      AutoGenerateColumns="False"
                       CanUserAddRows="False"
@@ -105,7 +106,7 @@
                     Background="#40FFFFFF" />
 
             <!-- 下表 -->
-            <DataGrid x:Name="gridBottom"
+            <DataGrid x:Name="gridBottom" Visibility="Collapsed"
                       Grid.Row="3"
                       ItemsSource="{Binding ItemsSourceBottom,
                                             RelativeSource={RelativeSource AncestorType={x:Type local:TwoDataTableWithHeader}}}"

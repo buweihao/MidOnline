@@ -442,6 +442,59 @@ namespace BasicRegionNavigation.ViewModels
             }
         }
         // 在 ViewAViewModel 类中添加此方法
+
+        [RelayCommand]
+        private async Task NavigateModule(string index)
+        {
+            SwitchModule(index);
+        }
+
+
+        [ObservableProperty]
+        private ObservableCollection<ISeries> _revenueSeries;
+
+        [ObservableProperty]
+        private int[] _myIntDataArray = new int[] { 10, 50, 25, 60, 90 };
+
+
+        // 模组名称属性组
+        [ObservableProperty] private string _model1Name;
+        [ObservableProperty] private string _model2Name;
+
+
+
+        public static string[] WarningName = new string[] { /* 省略长列表，保持原样 */ "上料模组1_传感器故障", "..." };
+
+        // ========================== 命令 ==========================
+
+
+        [RelayCommand]
+        private void ShowText(string param)
+        {
+            MyConfigCommand.configHelper = Global._config;
+            MyConfigCommand.ShowText(param);
+        }
+
+        // 修改：增加 ModuleModel 参数
+        public void UpdateXLabelsByTime(ModuleModel module)
+        {
+            if (module?.CurrentColumnInfo?.XAxes == null || module.CurrentColumnInfo.XAxes.Length == 0)
+                return;
+
+            string[] labels;
+            var currentClassTime = Global.GetCurrentClassTime();
+
+            if (currentClassTime.Status == ClassStatus.白班)
+                labels = new[] { "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19" };
+            else
+                labels = new[] { "20", "21", "22", "23", "0", "1", "2", "3", "4", "5", "6", "7" };
+
+            // 更新传入模组的标签，而不是全局的 CurrentModule
+            module.CurrentColumnInfo.XAxes[0].Labels = labels;
+        }
+
+        #region 测试数据
+
         private void StartStatusAndCapacitySimulation()
         {
             // 开启后台任务：模拟状态 (Status) 和 产能 (Capacity)
@@ -678,159 +731,10 @@ namespace BasicRegionNavigation.ViewModels
             });
         }
 
-        [RelayCommand]
-        private async Task NavigateModule(string index)
-        {
-            SwitchModule(index);
-        }
 
 
+        #endregion
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        // 跨线程事件聚合器
-        private readonly IEventAggregator _ea;
-        // 取消令牌源
-        private CancellationTokenSource cts = new CancellationTokenSource();
-
-        // ========================== 属性区域 ==========================
-
-
-
-
-
-
-        [ObservableProperty]
-        private ObservableCollection<ISeries> _revenueSeries;
-
-        [ObservableProperty]
-        private int[] _myIntDataArray = new int[] { 10, 50, 25, 60, 90 };
-
-
-        // 模组名称属性组
-        [ObservableProperty] private string _model1Name;
-        [ObservableProperty] private string _model2Name;
-        [ObservableProperty] private string _model3Name;
-        [ObservableProperty] private string _model4Name;
-        [ObservableProperty] private string _model5Name;
-        [ObservableProperty] private string _model6Name;
-        [ObservableProperty] private string _model7Name;
-        [ObservableProperty] private string _model8Name;
-        [ObservableProperty] private string _model9Name;
-        [ObservableProperty] private string _model10Name;
-        [ObservableProperty] private string _model11Name;
-        [ObservableProperty] private string _model12Name;
-
-        // ========================== 构造函数 ==========================
-
-        public void ModelNameInit()
-        {
-            Model1Name = "模组1" + Global.GetValue("1_备注");
-            Model2Name = "模组2" + Global.GetValue("2_备注");
-            Model3Name = "模组3" + Global.GetValue("3_备注");
-            Model4Name = "模组4" + Global.GetValue("4_备注");
-            Model5Name = "模组5" + Global.GetValue("5_备注");
-            Model6Name = "模组6" + Global.GetValue("6_备注");
-            Model7Name = "模组7" + Global.GetValue("6_备注");
-            Model8Name = "模组8" + Global.GetValue("6_备注");
-            Model9Name = "模组9" + Global.GetValue("6_备注");
-            Model10Name = "模组10" + Global.GetValue("6_备注");
-            Model11Name = "模组11" + Global.GetValue("6_备注");
-            Model12Name = "模组12" + Global.GetValue("6_备注");
-        }
-
-        private void OnMyDataUpdated(Core.TableRowViewModel value)
-        {
-            // 你的逻辑代码...
-            // var model = _cache.GetOrAdd(value.ModuleNum, i => GetModule(i));
-            // ...
-        }
-
-        public void NotifyChanges(IEnumerable<AlarmInfo> newValue)
-        {
-            _ea.GetEvent<MyDataUpdatedEvent>().Publish(newValue);
-        }
-
-        public static string[] WarningName = new string[] { /* 省略长列表，保持原样 */ "上料模组1_传感器故障", "..." };
-
-        // ========================== 命令 ==========================
-
-
-        [RelayCommand]
-        private void ShowText(string param)
-        {
-            MyConfigCommand.configHelper = Global._config;
-            MyConfigCommand.ShowText(param);
-        }
-
-        private Brush GetBrushByStatus(string value)
-        {
-            // 这里处理来自前端绑定时的字符串值
-            return value switch
-            {
-                // --- 原有逻辑 (int) ---
-                "3" => Brushes.Gray,  // 比如：离线/未知
-                "2" => Brushes.Red,   // 比如：故障
-                "1" => Brushes.Lime,  // 1 对应 绿色 (正常/连接)
-                "0" => Brushes.Red,   // 0 对应 红色 (异常/断开)
-
-                // --- 新增逻辑 (bool) ---
-                // 如果数据源是 bool 类型，ToString() 会变成 "True" 或 "False"
-                "True" => Brushes.Lime,  // True = 绿色
-                "False" => Brushes.Red,  // False = 红色
-
-                // 忽略大小写的兼容写法 (可选)
-                string s when s.Equals("true", StringComparison.OrdinalIgnoreCase) => Brushes.Lime,
-                string s when s.Equals("false", StringComparison.OrdinalIgnoreCase) => Brushes.Red,
-
-                _ => Brushes.Aqua     // 默认颜色
-            };
-        }
-
-        // 修改：增加 ModuleModel 参数
-        public void UpdateXLabelsByTime(ModuleModel module)
-        {
-            if (module?.CurrentColumnInfo?.XAxes == null || module.CurrentColumnInfo.XAxes.Length == 0)
-                return;
-
-            string[] labels;
-            var currentClassTime = Global.GetCurrentClassTime();
-
-            if (currentClassTime.Status == ClassStatus.白班)
-                labels = new[] { "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19" };
-            else
-                labels = new[] { "20", "21", "22", "23", "0", "1", "2", "3", "4", "5", "6", "7" };
-
-            // 更新传入模组的标签，而不是全局的 CurrentModule
-            module.CurrentColumnInfo.XAxes[0].Labels = labels;
-        }
-        public void UpdateAlarmList(IEnumerable<AlarmInfo> newAlarms)
-        {
-            Application.Current.Dispatcher.Invoke(() =>
-            {
-                CurrentModule.CurrentWarningInfo.AlarmList.Clear();
-                foreach (var alarm in newAlarms)
-                {
-                    CurrentModule.CurrentWarningInfo.AlarmList.Add(alarm);
-                }
-            });
-        }
 
     }
 

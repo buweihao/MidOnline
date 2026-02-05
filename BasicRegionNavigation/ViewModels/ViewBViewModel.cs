@@ -325,8 +325,9 @@ namespace BasicRegionNavigation.ViewModels
             }
         }
 
+        //以产品数量来统计
         [RelayCommand]
-        private async Task QueryAsync()
+        private async Task QueryAsync_()
         {
             try
             {
@@ -410,7 +411,71 @@ namespace BasicRegionNavigation.ViewModels
                  Global.LoadingManager.StopLoading();
             }
         }
+        
+        //下面是以小时产能来统计
+        [RelayCommand]
+        private async Task QueryAsync()
+        {
+            try
+            {
+                Global.LoadingManager.StartLoading();
 
+                var currentModuleId = _modelNum;
+                var start = Start;
+                var end = End;
+
+                // ---------------------------------------------------
+                // A. 并行获取所有数据 (移除 productStatsTask)
+                // ---------------------------------------------------
+                var flipperStatsTask = _flipperService.GetFlipperStatsAsync(start, end, currentModuleId);
+                var feederStatsTask = _upDropService.GetFeederStatsAsync(start, end, currentModuleId);
+                var pieStatsTask = _productionService.GetViewBPieStatsAsync(start, end, currentModuleId);
+
+                await Task.WhenAll(flipperStatsTask, feederStatsTask, pieStatsTask);
+
+                // ---------------------------------------------------
+                // B. 数据处理与合并
+                // ---------------------------------------------------
+                var flipperResult = flipperStatsTask.Result;
+                var feederResult = feederStatsTask.Result;
+                var pieStats = pieStatsTask.Result;
+
+                // [关键修改] 合并产品生产信息 (产能表)
+                // 利用 MergeProductInfos 将供料机的计数和翻转台的属性+计数 结合
+                var mergedProductStats = MergeProductInfos(feederResult.ProductInfos, flipperResult.ProductInfos);
+
+                // 合并效能列表
+                var allEfficiencyStats = MergeEfficiencies(feederResult.Efficiencies, flipperResult.Efficiencies);
+
+                // ---------------------------------------------------
+                // C. 更新 UI
+                // ---------------------------------------------------
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    // 1. 更新表格: 产品生产信息
+                    HandleDataChanged(currentModuleId, ModuleDataCategory.ProductInfoTop, mergedProductStats);
+                    HandleDataChanged(currentModuleId, ModuleDataCategory.ProductInfoBottom, mergedProductStats);
+
+                    // 2. 更新表格: 设备效能
+                    HandleDataChanged(currentModuleId, ModuleDataCategory.EfficiencyData, allEfficiencyStats);
+
+                    // 3. 更新图表: 故障统计
+                    UpdateFaultChart(currentModuleId, allEfficiencyStats);
+
+                    // 4. 更新饼图
+                    HandleDataChanged(currentModuleId, ModuleDataCategory.UpPieInfo, pieStats.UpPieData);
+                    HandleDataChanged(currentModuleId, ModuleDataCategory.DnPieInfo, pieStats.DnPieData);
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ViewB] Query Error: {ex.Message}");
+            }
+            finally
+            {
+                Global.LoadingManager.StopLoading();
+            }
+        }
 
         [ObservableProperty]
         private string _twoDataTableWithHeaderTitle = "产品生产信息表";

@@ -1,6 +1,6 @@
 ﻿using System.Linq; // 必须引用 Linq
 
-namespace BasicRegionNavigation.Services
+namespace BasicRegionNavigation.Helper
 {
     public static class SystemConfig
     {
