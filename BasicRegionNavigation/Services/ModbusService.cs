@@ -61,7 +61,7 @@ namespace BasicRegionNavigation.Services
             // 如果遇到类型转换错误，请改用 Subscribe<double> 或 Subscribe<bool>
             _bus.Subscribe<int>(fullTags, (values, isGood) =>
             {
-                if (isGood && values != null && values.Length == uiFields.Length)
+                if ( values != null && values.Length == uiFields.Length)
                 {
                     var dataPayload = new Dictionary<string, int>();
 

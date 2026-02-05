@@ -54,7 +54,7 @@
 
 
         <ctrls:ProductInfoGroup Grid.Row="1" Grid.Column="2" 
-                        Title="上挂产品"
+                        Title="下挂产品"
                         Items="{Binding CurrentModule.CurrentProductInfo.UpProductInfo}"
                         Background="Transparent"
                         Visibility="Visible"
@@ -65,7 +65,7 @@
                            Title="产品饼图"
                            Series="{Binding CurrentModule.CurrentPieInfo.UpMyPieSeries}" />
 
-        <con:CapacityChartCard Title="当班上挂产能" Grid.Row="3" Grid.Column="2"
+        <con:CapacityChartCard Title="当班下挂产能" Grid.Row="3" Grid.Column="2"
                        XAxes="{Binding CurrentModule.CurrentColumnInfo.XAxes}"
                        Series="{Binding CurrentModule.CurrentColumnInfo.CSeriesUp}"/>
         <!-- 边框在下层 -->
@@ -100,7 +100,7 @@
                 <Path Panel.ZIndex="2" Visibility="Visible" Margin="-200,0,0,0"
                       Data="M512 512m-512 0a100 100 0 1 0 1024 0 100 100 0 1 0-1024 0Z"
                       Fill="{Binding CurrentModule.CurrentStatus.HangerRobotStatus}" 
-                      Tag="上挂具大机械手"
+                      Tag="下挂具大机械手"
                       Width="22" Height="22" Stretch="Uniform" />
 
                 <Path Panel.ZIndex="2" Visibility="Visible" Margin="640,30,0,0"
@@ -112,19 +112,19 @@
                 <Path Panel.ZIndex="2" Visibility="Visible" Margin="-100,460,0,0"
                       Data="M512 512m-512 0a100 100 0 1 0 1024 0 100 100 0 1 0-1024 0Z"
                       Fill="{Binding CurrentModule.CurrentStatus.FeedStation1Status}" 
-                      Tag="上挂工位一"
+                      Tag="下挂工位一"
                       Width="22" Height="22" Stretch="Uniform" />
 
                 <Path Panel.ZIndex="2" Visibility="Visible" Margin="-440,460,0,0"
                       Data="M512 512m-512 0a100 100 0 1 0 1024 0 100 100 0 1 0-1024 0Z"
                       Fill="{Binding CurrentModule.CurrentStatus.FeedStation2Status}" 
-                      Tag="上挂工位二"
+                      Tag="下挂工位二"
                       Width="22" Height="22" Stretch="Uniform" />
 
                 <Path Panel.ZIndex="2" Visibility="Visible" Margin="-780,250,0,0"
                       Data="M512 512m-512 0a100 100 0 1 0 1024 0 100 100 0 1 0-1024 0Z"
                       Fill="{Binding CurrentModule.CurrentStatus.FeedStation3Status}" 
-                      Tag="上挂工位三"
+                      Tag="下挂工位三"
                       Width="22" Height="22" Stretch="Uniform" />
 
                 <con:StatusBox  Visibility="Visible"
